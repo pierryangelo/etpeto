@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help generate fmt test test-go test-web typecheck build check up down
+.PHONY: help generate fmt test test-go test-web typecheck build coverage coverage-go coverage-web check up smoke down
 
 help: ## List canonical commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -13,7 +13,7 @@ fmt: ## Format all source
 	@if test -f web/package.json; then cd web && bun run format; fi
 
 test-go: ## Run Go tests
-	@go test ./...
+	@go test -race ./...
 
 test-web: ## Run frontend tests
 	@cd web && bun run test
@@ -24,14 +24,32 @@ typecheck: ## Run static type checks
 	@go vet ./...
 	@cd web && bun run typecheck
 
-build: ## Build API, renderer, and web
-	@go build ./cmd/api ./cmd/renderer
+build: ## Build all Go commands and the web application
+	@go build ./cmd/...
 	@cd web && bun run build
 
-check: fmt test typecheck build ## Run required local gates
+coverage-go: ## Enforce the Go coverage floor
+	@mkdir -p coverage
+	@go test -covermode=atomic -coverprofile=coverage/go.out ./...
+	@sh scripts/check-go-coverage.sh coverage/go.out
+
+coverage-web: ## Enforce the frontend coverage floor
+	@cd web && bun run test:coverage
+
+coverage: coverage-go coverage-web ## Run coverage gates
+
+check: ## Run repository, format, test, type, and build gates
+	@sh scripts/check-repository.sh
+	@$(MAKE) fmt
+	@$(MAKE) test
+	@$(MAKE) typecheck
+	@$(MAKE) build
 
 up: ## Start the reference stack
-	@docker compose up --build
+	@docker compose up --build -d
+
+smoke: ## Verify the running reference stack
+	@sh scripts/smoke-compose.sh
 
 down: ## Stop the reference stack
 	@docker compose down
