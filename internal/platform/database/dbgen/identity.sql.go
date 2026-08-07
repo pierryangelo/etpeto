@@ -193,6 +193,8 @@ WHERE sessions.token_hash = $1
   AND sessions.revoked_at IS NULL
   AND sessions.expires_at > now()
   AND users.disabled_at IS NULL
+ORDER BY memberships.created_at
+LIMIT 1
 `
 
 type FindActiveSessionRow struct {
@@ -203,6 +205,9 @@ type FindActiveSessionRow struct {
 	OrganizationID pgtype.UUID        `db:"organization_id" json:"organization_id"`
 }
 
+// A session only resolves for a user who belongs to an organization: without a
+// membership there is no scope to authorize against. LIMIT keeps the query
+// single-row if a user ever holds more than one membership.
 func (q *Queries) FindActiveSession(ctx context.Context, tokenHash []byte) (FindActiveSessionRow, error) {
 	row := q.db.QueryRow(ctx, findActiveSession, tokenHash)
 	var i FindActiveSessionRow

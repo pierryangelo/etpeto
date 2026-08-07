@@ -66,6 +66,9 @@ WHERE organizations.slug = $1
   AND identities.email_normalized = $2
   AND users.disabled_at IS NULL;
 
+-- A session only resolves for a user who belongs to an organization: without a
+-- membership there is no scope to authorize against. LIMIT keeps the query
+-- single-row if a user ever holds more than one membership.
 -- name: FindActiveSession :one
 SELECT users.id,
        users.display_name,
@@ -78,4 +81,6 @@ JOIN memberships ON memberships.user_id = users.id
 WHERE sessions.token_hash = $1
   AND sessions.revoked_at IS NULL
   AND sessions.expires_at > now()
-  AND users.disabled_at IS NULL;
+  AND users.disabled_at IS NULL
+ORDER BY memberships.created_at
+LIMIT 1;

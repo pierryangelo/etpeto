@@ -13,6 +13,7 @@ import (
 
 	authdomain "github.com/etpeto/etpeto/internal/auth"
 	"github.com/etpeto/etpeto/internal/platform/database/dbgen"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -120,6 +121,21 @@ func TestFoundationMigrationEnforcesNormalizedLocalEmailUniqueness(t *testing.T)
 	}); err != nil {
 		t.Fatalf("create auth session: %v", err)
 	}
+
+	// A user with no membership belongs to no organization, so the session must
+	// not resolve: there would be no scope to authorize any request against.
+	if _, err := authRepository.FindActiveSession(ctx, tokenHash); !errors.Is(err, authdomain.ErrSessionNotFound) {
+		t.Fatalf("session resolved without a membership: %v", err)
+	}
+
+	if _, err := queries.CreateMembership(ctx, dbgen.CreateMembershipParams{
+		OrganizationID: organization.ID,
+		UserID:         firstUser.ID,
+		Role:           authdomain.RoleOrganizationAdmin,
+	}); err != nil {
+		t.Fatalf("create membership: %v", err)
+	}
+
 	session, err := authRepository.FindActiveSession(ctx, tokenHash)
 	if err != nil {
 		t.Fatalf("find active session: %v", err)
@@ -127,10 +143,17 @@ func TestFoundationMigrationEnforcesNormalizedLocalEmailUniqueness(t *testing.T)
 	if !bytes.Equal(session.CSRFHash, csrfHash) {
 		t.Fatalf("session CSRF hash = %x, want %x", session.CSRFHash, csrfHash)
 	}
+	if session.OrganizationID != formatUUIDForTest(organization.ID) {
+		t.Fatalf("session organization = %q", session.OrganizationID)
+	}
 	if err := authRepository.RevokeSession(ctx, tokenHash); err != nil {
 		t.Fatalf("revoke session: %v", err)
 	}
 	if _, err := authRepository.FindActiveSession(ctx, tokenHash); !errors.Is(err, authdomain.ErrSessionNotFound) {
 		t.Fatalf("revoked session lookup error = %v", err)
 	}
+}
+
+func formatUUIDForTest(value pgtype.UUID) string {
+	return uuid.UUID(value.Bytes).String()
 }
