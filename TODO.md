@@ -1,16 +1,20 @@
 # Pendências do Etpeto
 
-Etpeto está em fase pré-`v0.1`. A jornada principal já funciona de ponta a ponta — entrar, criar um ETP, editar, salvar, gerar o PDF oficial e exportar —, mas o domínio do ETP ainda é mínimo e **a aplicação não deve ser apresentada como pronta para produção**.
+Etpeto está em fase pré-`v0.1`. O ciclo institucional já funciona de ponta a ponta — a administração dá acesso, o gestor monta e publica o roteiro, o autor cria um ETP a partir da revisão publicada, escreve, salva, gera o PDF oficial e exporta —, mas o domínio do ETP ainda é mínimo e **a aplicação não deve ser apresentada como pronta para produção**.
 
-Estado confirmado da interface:
+Suba tudo com `make start`.
 
-- o editor carrega o documento persistido, navega pelas seções reais do roteiro e salva com concorrência otimista;
-- os estados de salvamento são verdadeiros, e o conflito oferece escolha explícita entre recarregar o servidor e manter o texto local;
-- a prévia chama o renderer e mostra o PDF devolvido, avisando quando está atrás da revisão atual;
-- a exportação entrega exatamente o arquivo renderizado, sem gerar um segundo PDF;
-- o roteiro ainda é fixo no código: não há roteiros configuráveis por organização;
-- pesquisa de preços, mapa de riscos e tabelas ainda não existem como elementos;
-- `Finalizar` ainda não existe: não há revisão imutável nem emissão;
+Estado confirmado:
+
+- o roteiro é dado versionado: o gestor edita um rascunho e publica revisões imutáveis, e cada documento fica preso à revisão com que nasceu;
+- seção e subseção são a mesma coisa, aninháveis em até quatro níveis, cada uma com orientação própria e obrigatoriedade própria;
+- o acesso é dado por convite de uso único, e a administração nunca conhece a senha de ninguém;
+- os papéis são verificados no caso de uso, não apenas na interface;
+- o editor salva com concorrência otimista e expõe conflito com escolha explícita;
+- a prévia e a exportação partem sempre da revisão persistida, pelo mesmo renderer;
+- força bruta por conta e abuso do renderer são contidos por limites de tentativa;
+- **pesquisa de preços, mapa de riscos e tabelas ainda não existem como elementos** — o roteiro já sabe declarar quais seções os aceitariam;
+- **`Finalizar` ainda não existe**: não há revisão congelada nem emissão com hashes;
 - o cliente HTTP valida respostas com Zod, mas ainda é escrito à mão, não gerado do OpenAPI;
 - OIDC/Keycloak ainda não foi implementado.
 
@@ -38,10 +42,9 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
   - A prévia agora parte da revisão persistida em `POST /api/v1/documents/{id}/preview`, com sessão, CSRF e escopo de organização.
   - Acesso anônimo e ausência de CSRF estão cobertos por testes e pelo smoke da stack.
 
-- [ ] **Limitar tentativas de login e de renderização.**
-  - Nenhuma rota tem rate limiting hoje; o renderer é o recurso mais caro da instalação.
-  - Definir limite por sessão e por origem, com resposta previsível e sem revelar existência de conta.
-  - Cobrir o excesso de requisições por testes.
+- [x] **Limitar tentativas de login e de renderização.**
+  - Duas camadas: por endereço, para proteger o serviço; por conta, contando só as falhas, para conter força bruta sem derrubar a organização junto.
+  - Uma conta retida responde igual a uma inexistente, e `ETPETO_THROTTLE_SCALE` ajusta os limites onde muitas pessoas compartilham um endereço.
 
 - [ ] **Gerar o cliente do frontend a partir do OpenAPI.**
   - Roteamento real e TanStack Query já estão em uso; o cliente em `web/src/shared/api/client.ts` valida com Zod, mas é escrito à mão.
@@ -86,6 +89,18 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
   - `scripts/smoke-journey.sh` provisiona, entra, cria, salva, comprova o 409 do salvamento obsoleto, renderiza o PDF e sai.
   - A CI executa a jornada contra a stack Docker com banco limpo, sem credenciais reais.
 
+- [ ] **Implementar a pesquisa de preços, hoje escrita e desligada.**
+  - `internal/document/pricing.go` tem o modelo, a validação e o cálculo — itens, fontes, datas, valores em centavos, e estimativa reproduzível por média, mediana ou menor preço — mas nada o referencia: o validador do documento ainda recusa qualquer elemento que não seja texto rico.
+  - Aceitar o elemento no documento, normalizar para o Typst como tabela e escrever o componente de edição.
+  - Respeitar o "conteúdo permitido" que o roteiro já declara por seção, e registrar no documento a metodologia adotada.
+
+- [ ] **Criar a tela inicial por papel.**
+  - Hoje a raiz cai direto na lista de documentos; o desenho aprovado mostra o trabalho parado e, abaixo, apenas as áreas que o papel permite.
+
+- [ ] **Cobrir os repositórios novos por teste de integração.**
+  - Roteiro e convite têm testes de domínio com dublês, mas nenhum exercita o PostgreSQL real.
+  - Publicação concorrente, unicidade do convite pendente e aceitação simultânea só se comprovam contra o banco.
+
 - [ ] **Cobrir a jornada principal pelo navegador.**
   - A jornada atual usa apenas a API; nada garante que a interface a percorra de fato.
   - Adicionar Playwright para o fluxo crítico no desktop e em viewport móvel.
@@ -93,20 +108,15 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
 
 ## P1 — Domínio do ETP
 
-- [ ] **Implementar roteiros configuráveis por organização.**
-  - Versionar templates e fixar cada documento à revisão usada em sua criação.
-  - Permitir seções obrigatórias, opcionais e personalizadas sem alterar código.
-  - Definir migração explícita quando um roteiro publicado mudar.
+- [x] **Implementar roteiros configuráveis por organização.**
+  - O gestor monta a árvore de seções, escreve a orientação, marca obrigatoriedade e escolhe que elementos cada seção aceita.
+  - Publicar cria revisão imutável e recusa rascunho idêntico ao publicado; documentos existentes não são tocados.
+  - Falta permitir mais de um roteiro por tipo de documento e histórico navegável de revisões.
 
 - [ ] **Modelar elementos documentais discriminados e versionados.**
   - Manter o JSON do Etpeto independente de Lexical e Typst.
   - Validar cada variante no frontend e no backend.
   - Preservar round-trip sem perda entre edição, persistência e renderização.
-
-- [ ] **Implementar pesquisa de preços.**
-  - Registrar itens, fontes, datas, valores, evidências e critérios de cálculo.
-  - Calcular estimativas de forma reproduzível e registrar a metodologia adotada.
-  - Renderizar o elemento de modo próprio no editor e no PDF.
 
 - [ ] **Implementar mapa de riscos.**
   - Registrar evento, causa, consequência, probabilidade, impacto, resposta e responsáveis.
@@ -126,9 +136,10 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
   - O que mais puxa o número para baixo são os repositórios PostgreSQL, hoje exercitados apenas pela suíte de integração e pela jornada.
   - Subir o piso a cada corte vertical concluído, sem permitir regressão.
 
-- [ ] **Administrar usuários, vínculos, papéis e templates.**
-  - Disponibilizar telas e APIs somente para os papéis autorizados.
-  - Auditar mudanças administrativas e impedir autoelevação de privilégios.
+- [x] **Administrar usuários, vínculos, papéis e templates.**
+  - Convite de uso único com validade de 72 horas, senha escolhida por quem aceita, e recusa de remover a última administração.
+  - Telas e rotas restritas ao papel, com teste negativo para cada rota de escrita.
+  - Falta auditar as mudanças administrativas, o que depende da trilha de auditoria abaixo.
 
 - [ ] **Evoluir o template oficial do PDF.**
   - Gerar capa, sumário, numeração, cabeçalhos, tabelas e quebras de página a partir de testes de referência.
