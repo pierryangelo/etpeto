@@ -11,6 +11,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countOrganizationAdministrators = `-- name: CountOrganizationAdministrators :one
+SELECT count(*)
+FROM memberships
+WHERE organization_id = $1
+  AND role IN ('installation_admin', 'organization_admin')
+`
+
+func (q *Queries) CountOrganizationAdministrators(ctx context.Context, organizationID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countOrganizationAdministrators, organizationID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createLocalIdentity = `-- name: CreateLocalIdentity :one
 INSERT INTO identities (
     organization_id,
@@ -251,6 +265,24 @@ func (q *Queries) FindLocalIdentityByNormalizedEmail(ctx context.Context, arg Fi
 		&i.Email,
 		&i.EmailNormalized,
 		&i.PasswordHash,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const findOrganizationBySlug = `-- name: FindOrganizationBySlug :one
+SELECT id, slug, name, created_at
+FROM organizations
+WHERE slug = $1
+`
+
+func (q *Queries) FindOrganizationBySlug(ctx context.Context, slug string) (Organization, error) {
+	row := q.db.QueryRow(ctx, findOrganizationBySlug, slug)
+	var i Organization
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
 		&i.CreatedAt,
 	)
 	return i, err

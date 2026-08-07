@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help generate fmt test test-go test-web test-integration typecheck build coverage coverage-go coverage-web check up smoke down
+.PHONY: help generate fmt test test-go test-web test-integration typecheck build coverage coverage-go coverage-web check up bootstrap smoke down
 
 help: ## List canonical commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -50,6 +50,9 @@ check: ## Run repository, format, test, type, and build gates
 
 up: ## Start the reference stack
 	@docker compose up --build -d
+
+bootstrap: ## Provision the first administrator (password read from stdin)
+	@docker compose run --rm --no-TTY bootstrap
 
 smoke: ## Verify the running reference stack
 	@sh scripts/smoke-compose.sh

@@ -33,6 +33,27 @@ services:
       - data
     restart: "no"
 
+  # One-shot provisioning of the first administrator. It never starts with the
+  # stack: run it explicitly with `make bootstrap` after `make up`.
+  bootstrap:
+    profiles: ["bootstrap"]
+    build:
+      context: .
+      dockerfile: deploy/api.Dockerfile
+    entrypoint: ["/app/bootstrap"]
+    environment:
+      ETPETO_DATABASE_URL: postgres://${POSTGRES_USER:-etpeto}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-etpeto}?sslmode=disable
+      ETPETO_ORGANIZATION_SLUG: ${ETPETO_ORGANIZATION_SLUG:-default}
+      ETPETO_ORGANIZATION_NAME: ${ETPETO_ORGANIZATION_NAME:-}
+      ETPETO_ADMIN_EMAIL: ${ETPETO_ADMIN_EMAIL:?set ETPETO_ADMIN_EMAIL in .env}
+      ETPETO_ADMIN_DISPLAY_NAME: ${ETPETO_ADMIN_DISPLAY_NAME:?set ETPETO_ADMIN_DISPLAY_NAME in .env}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
+    restart: "no"
+
   renderer:
     build:
       context: .

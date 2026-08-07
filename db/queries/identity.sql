@@ -29,6 +29,17 @@ WHERE organization_id = $1
   AND provider = 'local'
   AND email_normalized = $2;
 
+-- name: FindOrganizationBySlug :one
+SELECT id, slug, name, created_at
+FROM organizations
+WHERE slug = $1;
+
+-- name: CountOrganizationAdministrators :one
+SELECT count(*)
+FROM memberships
+WHERE organization_id = $1
+  AND role IN ('installation_admin', 'organization_admin');
+
 -- name: CreateMembership :one
 INSERT INTO memberships (organization_id, user_id, role)
 VALUES ($1, $2, $3)
