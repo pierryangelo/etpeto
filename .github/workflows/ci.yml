@@ -83,6 +83,9 @@ jobs:
     env:
       POSTGRES_PASSWORD: ci-only-postgres-password
       ETPETO_RENDERER_TOKEN: ci-only-renderer-token-with-sufficient-entropy
+      ETPETO_ADMIN_EMAIL: ci@example.invalid
+      ETPETO_ADMIN_DISPLAY_NAME: Verificação Automatizada
+      ETPETO_ADMIN_PASSWORD: ci-only-administrator-password
     steps:
       - name: Check out repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -92,6 +95,12 @@ jobs:
 
       - name: Run public smoke contract
         run: sh scripts/smoke-compose.sh
+
+      - name: Provision the first administrator
+        run: docker compose run --rm --no-TTY bootstrap < /dev/null
+
+      - name: Exercise the main journey
+        run: sh scripts/smoke-journey.sh
 
       - name: Show service state
         if: always()

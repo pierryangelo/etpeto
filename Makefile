@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help generate fmt test test-go test-web test-integration typecheck build coverage coverage-go coverage-web check up bootstrap smoke down
+.PHONY: help generate fmt test test-go test-web test-integration typecheck build coverage coverage-go coverage-web check up bootstrap smoke smoke-journey down
 
 help: ## List canonical commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -56,6 +56,9 @@ bootstrap: ## Provision the first administrator (password read from stdin)
 
 smoke: ## Verify the running reference stack
 	@sh scripts/smoke-compose.sh
+
+smoke-journey: ## Exercise the main journey against the running stack
+	@sh scripts/smoke-journey.sh
 
 down: ## Stop the reference stack
 	@docker compose down

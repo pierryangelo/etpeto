@@ -47,6 +47,9 @@ services:
       ETPETO_ORGANIZATION_NAME: ${ETPETO_ORGANIZATION_NAME:-}
       ETPETO_ADMIN_EMAIL: ${ETPETO_ADMIN_EMAIL:?set ETPETO_ADMIN_EMAIL in .env}
       ETPETO_ADMIN_DISPLAY_NAME: ${ETPETO_ADMIN_DISPLAY_NAME:?set ETPETO_ADMIN_DISPLAY_NAME in .env}
+      # Left empty on purpose: the password is normally typed on standard input.
+      # Only automated installs with a secret mount should set this variable.
+      ETPETO_ADMIN_PASSWORD: ${ETPETO_ADMIN_PASSWORD:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
