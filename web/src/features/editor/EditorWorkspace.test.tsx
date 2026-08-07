@@ -21,6 +21,7 @@ describe("EditorWorkspace", () => {
     vi.spyOn(api, "session").mockResolvedValue({
       id: "pessoa-1",
       displayName: "Pessoa Autora",
+      role: "author",
     });
   });
 

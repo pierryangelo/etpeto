@@ -32,6 +32,9 @@ export class ApiError extends Error {
 export const userSchema = z.object({
   id: z.string(),
   displayName: z.string(),
+  // The role decides which areas the interface offers. It is a convenience for
+  // drawing the screen: the API checks the role again on every request.
+  role: z.string(),
 });
 
 export const documentSummarySchema = z.object({
@@ -87,6 +90,71 @@ export const storedDocumentSchema = z.object({
   updatedAt: z.string(),
   content: documentContentSchema,
 });
+
+// The script a document is written from. A subsection is a section nested
+// inside another one, the same shape all the way down.
+export type BlueprintSection = {
+  key: string;
+  title: string;
+  guidance?: string;
+  required: boolean;
+  allowRename: boolean;
+  allowedElements: string[];
+  sections?: BlueprintSection[];
+};
+
+export const blueprintSectionSchema: z.ZodType<BlueprintSection> = z.object({
+  key: z.string(),
+  title: z.string(),
+  guidance: z.string().optional(),
+  required: z.boolean(),
+  allowRename: z.boolean(),
+  allowedElements: z.array(z.string()),
+  get sections() {
+    return z.array(blueprintSectionSchema).optional();
+  },
+});
+
+export const blueprintSchema = z.object({
+  schemaVersion: z.number().int(),
+  documentType: z.string(),
+  sections: z.array(blueprintSectionSchema),
+});
+
+export const templateSummarySchema = z.object({
+  id: z.string(),
+  documentType: z.string(),
+  name: z.string(),
+  draftVersion: z.number().int(),
+  draftUpdatedAt: z.string(),
+  publishedRevision: z.number().int(),
+  documentCount: z.number().int(),
+  hasUnpublishedChanges: z.boolean(),
+});
+
+export const templateDraftSchema = z.object({
+  id: z.string(),
+  documentType: z.string(),
+  name: z.string(),
+  draftVersion: z.number().int(),
+  draftUpdatedAt: z.string(),
+  blueprint: blueprintSchema,
+  publishedRevision: z.number().int(),
+});
+
+export const publishedTemplateSchema = z.object({
+  id: z.string(),
+  templateId: z.string(),
+  templateName: z.string(),
+  documentType: z.string(),
+  revision: z.number().int(),
+  publishedAt: z.string(),
+});
+
+export type Blueprint = z.infer<typeof blueprintSchema>;
+export type TemplateSummary = z.infer<typeof templateSummarySchema>;
+export type TemplateDraft = z.infer<typeof templateDraftSchema>;
+export type PublishedTemplate = z.infer<typeof publishedTemplateSchema>;
 
 export type AuthenticatedUser = z.infer<typeof userSchema>;
 export type DocumentSummary = z.infer<typeof documentSummarySchema>;
@@ -194,10 +262,13 @@ export const api = {
     return body.documents;
   },
 
-  createDocument(title: string): Promise<StoredDocument> {
+  createDocument(
+    title: string,
+    templateRevisionId?: string,
+  ): Promise<StoredDocument> {
     return requestJson("/api/v1/documents", storedDocumentSchema, {
       method: "POST",
-      body: { title },
+      body: { title, templateRevisionId },
     });
   },
 
@@ -217,6 +288,49 @@ export const api = {
       `/api/v1/documents/${encodeURIComponent(id)}`,
       storedDocumentSchema,
       { method: "PUT", body: { expectedRevision, content } },
+    );
+  },
+
+  async listTemplates(): Promise<TemplateSummary[]> {
+    const body = await requestJson(
+      "/api/v1/templates",
+      z.object({ templates: z.array(templateSummarySchema) }),
+    );
+    return body.templates;
+  },
+
+  async listPublishedTemplates(): Promise<PublishedTemplate[]> {
+    const body = await requestJson(
+      "/api/v1/templates/published",
+      z.object({ templates: z.array(publishedTemplateSchema) }),
+    );
+    return body.templates;
+  },
+
+  openTemplate(id: string): Promise<TemplateDraft> {
+    return requestJson(
+      `/api/v1/templates/${encodeURIComponent(id)}`,
+      templateDraftSchema,
+    );
+  },
+
+  saveTemplateDraft(
+    id: string,
+    expectedVersion: number,
+    blueprint: Blueprint,
+  ): Promise<TemplateDraft> {
+    return requestJson(
+      `/api/v1/templates/${encodeURIComponent(id)}/draft`,
+      templateDraftSchema,
+      { method: "PUT", body: { expectedVersion, blueprint } },
+    );
+  },
+
+  publishTemplate(id: string): Promise<PublishedTemplate> {
+    return requestJson(
+      `/api/v1/templates/${encodeURIComponent(id)}/revisions`,
+      publishedTemplateSchema,
+      { method: "POST" },
     );
   },
 

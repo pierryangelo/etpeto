@@ -5,6 +5,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { LoginPage } from "../features/auth/LoginPage";
 import { DocumentsPage } from "../features/documents/DocumentsPage";
 import { EditorWorkspace } from "../features/editor/EditorWorkspace";
+import { TemplateEditorPage } from "../features/templates/TemplateEditorPage";
+import { TemplatesPage } from "../features/templates/TemplatesPage";
 import { RequireSession } from "./RequireSession";
 
 function createQueryClient() {
@@ -31,6 +33,8 @@ export function App() {
           <Route element={<RequireSession />}>
             <Route path="/documentos" element={<DocumentsPage />} />
             <Route path="/documentos/:id" element={<EditorWorkspace />} />
+            <Route path="/roteiros" element={<TemplatesPage />} />
+            <Route path="/roteiros/:id" element={<TemplateEditorPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/documentos" replace />} />
         </Routes>
