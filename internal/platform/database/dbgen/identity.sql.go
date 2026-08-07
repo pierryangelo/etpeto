@@ -181,9 +181,14 @@ func (q *Queries) CreateUser(ctx context.Context, displayName string) (User, err
 }
 
 const findActiveSession = `-- name: FindActiveSession :one
-SELECT users.id, users.display_name, sessions.expires_at, sessions.csrf_hash
+SELECT users.id,
+       users.display_name,
+       sessions.expires_at,
+       sessions.csrf_hash,
+       memberships.organization_id
 FROM sessions
 JOIN users ON users.id = sessions.user_id
+JOIN memberships ON memberships.user_id = users.id
 WHERE sessions.token_hash = $1
   AND sessions.revoked_at IS NULL
   AND sessions.expires_at > now()
@@ -191,10 +196,11 @@ WHERE sessions.token_hash = $1
 `
 
 type FindActiveSessionRow struct {
-	ID          pgtype.UUID        `db:"id" json:"id"`
-	DisplayName string             `db:"display_name" json:"display_name"`
-	ExpiresAt   pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
-	CsrfHash    []byte             `db:"csrf_hash" json:"csrf_hash"`
+	ID             pgtype.UUID        `db:"id" json:"id"`
+	DisplayName    string             `db:"display_name" json:"display_name"`
+	ExpiresAt      pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	CsrfHash       []byte             `db:"csrf_hash" json:"csrf_hash"`
+	OrganizationID pgtype.UUID        `db:"organization_id" json:"organization_id"`
 }
 
 func (q *Queries) FindActiveSession(ctx context.Context, tokenHash []byte) (FindActiveSessionRow, error) {
@@ -205,6 +211,7 @@ func (q *Queries) FindActiveSession(ctx context.Context, tokenHash []byte) (Find
 		&i.DisplayName,
 		&i.ExpiresAt,
 		&i.CsrfHash,
+		&i.OrganizationID,
 	)
 	return i, err
 }

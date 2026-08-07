@@ -198,13 +198,16 @@ func (c credentials) apply(request *http.Request) {
 	}
 }
 
+const testOrganizationID = "00000000-0000-0000-0000-0000000000aa"
+
 func authenticatedTestUser() authdomain.AuthenticatedUser {
 	hash := sha256.Sum256(bytes.Repeat([]byte{0x21}, 32))
 	return authdomain.AuthenticatedUser{
-		ID:          "00000000-0000-0000-0000-000000000001",
-		DisplayName: "Pessoa Autora",
-		ExpiresAt:   time.Date(2026, 8, 7, 12, 0, 0, 0, time.UTC),
-		CSRFHash:    hash[:],
+		ID:             "00000000-0000-0000-0000-000000000001",
+		DisplayName:    "Pessoa Autora",
+		OrganizationID: testOrganizationID,
+		ExpiresAt:      time.Date(2026, 8, 7, 12, 0, 0, 0, time.UTC),
+		CSRFHash:       hash[:],
 	}
 }
 

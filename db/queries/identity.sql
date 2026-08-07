@@ -67,9 +67,14 @@ WHERE organizations.slug = $1
   AND users.disabled_at IS NULL;
 
 -- name: FindActiveSession :one
-SELECT users.id, users.display_name, sessions.expires_at, sessions.csrf_hash
+SELECT users.id,
+       users.display_name,
+       sessions.expires_at,
+       sessions.csrf_hash,
+       memberships.organization_id
 FROM sessions
 JOIN users ON users.id = sessions.user_id
+JOIN memberships ON memberships.user_id = users.id
 WHERE sessions.token_hash = $1
   AND sessions.revoked_at IS NULL
   AND sessions.expires_at > now()

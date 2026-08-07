@@ -8,6 +8,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Document struct {
+	ID              pgtype.UUID        `db:"id" json:"id"`
+	OrganizationID  pgtype.UUID        `db:"organization_id" json:"organization_id"`
+	CreatedBy       pgtype.UUID        `db:"created_by" json:"created_by"`
+	DocumentType    string             `db:"document_type" json:"document_type"`
+	Title           string             `db:"title" json:"title"`
+	CurrentRevision int32              `db:"current_revision" json:"current_revision"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type DocumentRevision struct {
+	ID            pgtype.UUID        `db:"id" json:"id"`
+	DocumentID    pgtype.UUID        `db:"document_id" json:"document_id"`
+	Revision      int32              `db:"revision" json:"revision"`
+	SchemaVersion int32              `db:"schema_version" json:"schema_version"`
+	Content       []byte             `db:"content" json:"content"`
+	ContentHash   []byte             `db:"content_hash" json:"content_hash"`
+	CreatedBy     pgtype.UUID        `db:"created_by" json:"created_by"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
 type Identity struct {
 	ID              pgtype.UUID        `db:"id" json:"id"`
 	OrganizationID  pgtype.UUID        `db:"organization_id" json:"organization_id"`

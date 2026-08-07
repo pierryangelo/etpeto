@@ -12,6 +12,7 @@ import (
 
 	"github.com/etpeto/etpeto/internal/api"
 	authdomain "github.com/etpeto/etpeto/internal/auth"
+	documentdomain "github.com/etpeto/etpeto/internal/document"
 	"github.com/etpeto/etpeto/internal/platform/database"
 	"github.com/etpeto/etpeto/internal/platform/database/dbgen"
 	"github.com/etpeto/etpeto/internal/renderclient"
@@ -91,6 +92,9 @@ func main() {
 				HTTP:    &http.Client{Timeout: 20 * time.Second},
 			},
 			Auth: authentication,
+			Documents: documentdomain.Service{
+				Repository: documentdomain.PostgresRepository{Pool: pool},
+			},
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

@@ -72,10 +72,11 @@ func (r PostgresRepository) FindActiveSession(
 		return AuthenticatedUser{}, ErrSessionNotFound
 	}
 	return AuthenticatedUser{
-		ID:          formatUUID(row.ID),
-		DisplayName: row.DisplayName,
-		ExpiresAt:   row.ExpiresAt.Time,
-		CSRFHash:    row.CsrfHash,
+		ID:             formatUUID(row.ID),
+		DisplayName:    row.DisplayName,
+		OrganizationID: formatUUID(row.OrganizationID),
+		ExpiresAt:      row.ExpiresAt.Time,
+		CSRFHash:       row.CsrfHash,
 	}, nil
 }
 

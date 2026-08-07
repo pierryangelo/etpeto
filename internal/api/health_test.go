@@ -76,10 +76,12 @@ func TestOpenAPIContainsPublicOperations(t *testing.T) {
 		"/livez",
 		"/readyz",
 		"/api/v1/service-info",
-		"/api/v1/previews",
 		"/api/v1/auth/local/login",
 		"/api/v1/auth/session",
 		"/api/v1/auth/logout",
+		"/api/v1/documents",
+		"/api/v1/documents/{id}",
+		"/api/v1/documents/{id}/preview",
 	} {
 		if !strings.Contains(body, path) {
 			t.Errorf("OpenAPI does not contain %s", path)
