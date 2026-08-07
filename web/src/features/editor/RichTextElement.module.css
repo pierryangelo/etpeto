@@ -11,50 +11,112 @@
   gap: var(--space-2);
 }
 
+/* The toolbar sits on the page rather than in a tray: it belongs to the writing
+   surface, so it carries no card of its own. */
 .toolbar {
   display: flex;
   width: max-content;
   max-width: 100%;
   align-items: center;
-  gap: 2px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-2);
-  background: var(--color-panel);
-  padding: 4px;
+  gap: 1px;
+  margin-left: -6px;
 }
 
-.toolbar button {
-  display: grid;
-  min-width: 30px;
-  height: 28px;
-  place-items: center;
-  border: 0;
-  border-radius: 5px;
+.tool {
+  display: inline-flex;
+  min-width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
   background: transparent;
   color: var(--color-text);
-  padding: 0 7px;
+  padding: 0 6px;
   font: inherit;
-  font-size: 11px;
-  font-weight: 660;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.toolbar button:hover,
-.toolbar button[aria-pressed="true"] {
-  background: var(--color-paper);
+.tool:hover:not(:disabled) {
+  background: var(--color-panel);
   color: var(--color-ink);
-  box-shadow: var(--shadow-1);
 }
 
-.toolbar button[aria-pressed="true"] {
-  outline: 1px solid var(--color-accent-border);
+.tool:disabled {
+  color: var(--color-border-strong);
+  cursor: default;
+}
+
+.tool[aria-pressed="true"],
+.tool[data-popup-open] {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
   color: var(--color-accent-strong);
+}
+
+.blockTrigger {
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 550;
 }
 
 .separator {
   width: 1px;
-  height: 18px;
-  margin: 0 3px;
+  height: 16px;
+  margin: 0 4px;
   background: var(--color-border);
+}
+
+.tooltip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: var(--radius-1);
+  background: var(--color-ink);
+  color: white;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  font-weight: 550;
+}
+
+.tooltip kbd {
+  color: rgb(255 255 255 / 60%);
+  font: inherit;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu {
+  display: flex;
+  min-width: 148px;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  background: var(--color-paper);
+  padding: 4px;
+  box-shadow: var(--shadow-2);
+}
+
+.menuItem {
+  border-radius: var(--radius-1);
+  padding: 5px 8px;
+  font-size: 12.5px;
+  cursor: pointer;
+  outline: none;
+}
+
+.menuItem[data-highlighted] {
+  background: var(--color-panel);
+  color: var(--color-ink);
+}
+
+.menuItem[data-selected] {
+  color: var(--color-accent-strong);
+  font-weight: 600;
 }
 
 .underlineGlyph {
@@ -113,8 +175,23 @@
   opacity: 0.55;
 }
 
+/* Focus is marked by a rail in the margin, the height of the text itself.
+   A ring drawn around the writing area would put the frame back. */
 .surface {
   position: relative;
+  margin-left: -16px;
+  border-left: 2px solid transparent;
+  padding-left: 14px;
+}
+
+.surface:focus-within {
+  border-left-color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .surface {
+    transition: border-color 140ms ease;
+  }
 }
 
 /* Free prose carries no frame: it is the page. A border here would draw a
@@ -130,9 +207,11 @@
   outline: none;
 }
 
-/* Focus is shown on the caret and a quiet rail, not by outlining a box. */
+/* The caret and the margin rail carry focus here. The global focus ring is for
+   controls; on a full-width writing surface it draws exactly the box we removed. */
+.contentEditable:focus,
 .contentEditable:focus-visible {
-  box-shadow: -14px 0 0 -13px var(--color-accent);
+  outline: none;
 }
 
 .placeholder {
@@ -197,4 +276,23 @@
   .linkEditor input {
     width: 100%;
   }
+}
+
+.orderedList {
+  margin: 0 0 12px;
+  padding-left: 22px;
+  font-family: var(--font-document);
+  font-size: 16px;
+  line-height: 1.62;
+}
+
+.quote {
+  margin: 0 0 12px;
+  border-left: 2px solid var(--color-border-strong);
+  padding-left: 14px;
+  color: var(--color-text);
+  font-family: var(--font-document);
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.62;
 }

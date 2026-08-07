@@ -16,6 +16,7 @@ import {
   writeLayout,
   type PanelLayout,
 } from "./panelLayout";
+import { documentProgress, sectionStatus } from "./sectionProgress";
 import { useDocumentEditor, type SaveState } from "./useDocumentEditor";
 import styles from "./EditorWorkspace.module.css";
 
@@ -98,7 +99,7 @@ export function EditorWorkspace({ documentId, compact }: EditorWorkspaceProps) {
 
   const outline = (
     <DocumentOutline
-      sections={draft.sections}
+      content={draft}
       activeSectionId={activeSection.id}
       compact={isCompact}
       onSelect={(id) => {
@@ -283,22 +284,20 @@ function DocumentIdentity({
 }
 
 function DocumentOutline({
-  sections,
+  content,
   activeSectionId,
   compact,
   onSelect,
   onCollapse,
 }: {
-  sections: DocumentSection[];
+  content: DocumentContent;
   activeSectionId: string;
   compact: boolean;
   onSelect: (id: string) => void;
   onCollapse?: () => void;
 }) {
-  const filled = sections.filter(sectionHasContent).length;
-  const progress = sections.length
-    ? Math.round((filled / sections.length) * 100)
-    : 0;
+  const sections = content.sections;
+  const { statuses, percent, missingRequired } = documentProgress(content);
 
   return (
     <nav
@@ -322,51 +321,55 @@ function DocumentOutline({
         )}
       </div>
       <ol className={styles.sectionList}>
-        {sections.map((section, index) => {
-          const active = section.id === activeSectionId;
-          const state = active
-            ? "active"
-            : sectionHasContent(section)
-              ? "done"
-              : "todo";
+        {statuses.map((status, index) => {
+          const active = status.section.id === activeSectionId;
+          const state = active ? "active" : status.filled ? "done" : "todo";
           return (
-            <li key={section.id} className={styles.sectionItem}>
+            <li key={status.section.id} className={styles.sectionItem}>
               <button
                 className={styles.sectionButton}
                 data-state={state}
                 type="button"
                 aria-current={active ? "step" : undefined}
-                onClick={() => onSelect(section.id)}
+                onClick={() => onSelect(status.section.id)}
               >
                 <span className={styles.sectionMarker} aria-hidden="true">
-                  {state === "done" ? "✓" : index + 1}
+                  {status.filled ? "✓" : index + 1}
                 </span>
-                <span>{section.title}</span>
-                {active && (
-                  <span className={styles.activeLabel}>Em edição</span>
-                )}
+                <span className={styles.sectionName}>
+                  {status.section.title}
+                </span>
+                <span
+                  className={styles.sectionRequirement}
+                  data-pending={
+                    status.required && !status.filled ? "" : undefined
+                  }
+                >
+                  {status.required ? "Obrig." : "Opcional"}
+                </span>
               </button>
             </li>
           );
         })}
       </ol>
       <div className={styles.outlineProgress}>
-        <span>Progresso do roteiro</span>
-        <strong>{progress}%</strong>
+        <span>Preenchimento</span>
+        <strong>{percent}%</strong>
         <div className={styles.progressTrack} aria-hidden="true">
-          <span style={{ width: `${progress}%` }} />
+          <span style={{ width: `${percent}%` }} />
         </div>
+        {/* Naming the pending section beats a percentage: it says what to do
+            next instead of how far along the document is. */}
+        {missingRequired.length > 0 && (
+          <p className={styles.pending}>
+            {missingRequired.length === 1
+              ? `1 seção obrigatória ainda vazia: ${missingRequired[0]}.`
+              : `${missingRequired.length} seções obrigatórias ainda vazias: ${missingRequired.join(", ")}.`}
+          </p>
+        )}
       </div>
     </nav>
   );
-}
-
-function sectionHasContent(section: DocumentSection): boolean {
-  return section.elements.some((element) => {
-    const state = element.richText as
-      { root?: { children?: unknown[] } } | undefined;
-    return Boolean(state?.root?.children?.length);
-  });
 }
 
 function DocumentEditor({
@@ -384,18 +387,25 @@ function DocumentEditor({
     state: SerializedEditorState,
   ) => void;
 }) {
-  const position =
-    draft.sections.findIndex((item) => item.id === section.id) + 1;
+  const status = sectionStatus(draft, section);
 
   return (
     <main className={styles.editor}>
+      <div className={styles.editorContext}>
+        <span>
+          Seção {status.position} de {draft.sections.length}
+        </span>
+        <span className={styles.contextDot} aria-hidden="true" />
+        <span data-required={status.required ? "" : undefined}>
+          {status.required ? "Obrigatória" : "Opcional"}
+        </span>
+        <span className={styles.contextDot} aria-hidden="true" />
+        <span>
+          {status.words} {status.words === 1 ? "palavra" : "palavras"}
+        </span>
+      </div>
       <div className={styles.editorScroll}>
         <article className={styles.editorCard}>
-          <div className={styles.sectionContext}>
-            <span>
-              Seção {position} de {draft.sections.length}
-            </span>
-          </div>
           <h1>{section.title}</h1>
           {section.guidance && (
             <p className={styles.guidance}>{section.guidance}</p>
