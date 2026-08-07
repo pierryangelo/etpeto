@@ -63,9 +63,65 @@ export default defineConfig({
       document: "var(--font-document)",
     },
   },
+  /**
+   * The design system lives here and in shared/ui.
+   *
+   * A shortcut holds the decision — what a secondary button *is* — and the
+   * component in shared/ui holds the behaviour and the accessibility. A screen
+   * composes primitives and never decides appearance, which is what stopped
+   * every screen from inventing its own button.
+   */
   shortcuts: {
-    // Promoted only after the pattern appeared more than once.
-    "field-label": "text-11px font-600 tracking-wide uppercase text-subtle",
-    "row-between": "flex items-center justify-between gap-2",
+    // Controls -------------------------------------------------------------
+    "ds-control":
+      "inline-flex items-center justify-center gap-1.5 rounded-1 border font-550 " +
+      "transition-colors duration-140 disabled:opacity-45 disabled:cursor-default " +
+      "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 " +
+      "focus-visible:outline-[var(--color-focus)]",
+    "ds-btn": "ds-control h-7 px-2.5 text-12px cursor-pointer",
+    "ds-btn-primary":
+      "ds-btn border-accent-strong bg-accent text-white hover:not-disabled:bg-accent-strong",
+    "ds-btn-secondary":
+      "ds-btn border-line-strong bg-paper text-text " +
+      "hover:not-disabled:border-accent-line hover:not-disabled:text-accent-strong",
+    "ds-btn-quiet":
+      "ds-btn border-transparent bg-transparent text-text hover:not-disabled:bg-panel",
+    "ds-btn-danger":
+      "ds-btn border-line bg-paper text-danger hover:not-disabled:border-danger",
+    "ds-btn-sm": "h-6 px-2 text-11.5px",
+    "ds-icon-btn":
+      "ds-control size-6 rounded-1 border-transparent bg-transparent text-subtle " +
+      "cursor-pointer hover:not-disabled:bg-panel hover:not-disabled:text-ink",
+
+    // Inputs ---------------------------------------------------------------
+    // font-inherit matters: a textarea does not inherit the family, which is
+    // how the guidance field ended up rendering in a monospace face.
+    "ds-input":
+      "w-full rounded-1 border border-line bg-paper px-2 py-1.5 text-13px text-ink " +
+      "font-[inherit] placeholder:text-subtle " +
+      "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 " +
+      "focus-visible:outline-[var(--color-focus)] focus-visible:border-accent-line",
+    "ds-textarea": "ds-input min-h-16 resize-y leading-relaxed",
+
+    // Text -----------------------------------------------------------------
+    "ds-label": "text-10.5px font-700 tracking-wide uppercase text-subtle",
+    "ds-eyebrow": "text-10px font-700 tracking-wider uppercase text-subtle",
+    "ds-help": "text-11px leading-snug text-subtle",
+    "ds-title": "text-19px font-680 tracking-tight text-ink",
+    "ds-meta": "text-11.5px text-subtle",
+
+    // Surfaces -------------------------------------------------------------
+    "ds-panel": "bg-panel border-line",
+    "ds-paper": "bg-paper",
+    "ds-divider": "w-px flex-none bg-line",
+    "ds-row": "flex items-center gap-2",
+    "ds-stack": "flex flex-col gap-3.5",
+
+    // Status ---------------------------------------------------------------
+    "ds-badge":
+      "inline-block rounded-0.5 px-1.5 py-0.5 text-9.5px font-700 tracking-wide uppercase",
+    "ds-badge-live": "ds-badge bg-success-soft text-success",
+    "ds-badge-draft": "ds-badge bg-accent-soft text-accent-strong",
+    "ds-badge-muted": "ds-badge bg-panel text-subtle",
   },
 });

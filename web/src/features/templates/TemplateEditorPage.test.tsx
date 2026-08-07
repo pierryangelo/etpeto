@@ -71,7 +71,7 @@ describe("TemplateEditorPage", () => {
     renderEditor();
 
     expect(await screen.findByText("2.1")).toBeVisible();
-    const structure = screen.getByRole("navigation", {
+    const structure = screen.getByRole("tree", {
       name: "Estrutura do roteiro",
     });
     expect(within(structure).getByText("Requisitos técnicos")).toBeVisible();

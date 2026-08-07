@@ -32,7 +32,8 @@ describe("DocumentsPage", () => {
       name: /Aquisição de notebooks/,
     });
     expect(link).toHaveAttribute("href", "/documentos/documento-1");
-    expect(screen.getByText(/Revisão 3/)).toBeVisible();
+    // The revision has its own column now, so it reads as a number.
+    expect(screen.getByRole("cell", { name: "3" })).toBeVisible();
   });
 
   it("orienta quando ainda não existe documento", async () => {

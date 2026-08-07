@@ -4,7 +4,9 @@ import { Link, useNavigate } from "react-router";
 
 import { ApiError, api } from "../../shared/api/client";
 import { AppHeader } from "../../shared/ui/AppHeader";
-import styles from "./DocumentsPage.module.css";
+import { Button, PageHeading, TextField } from "../../shared/ui/controls";
+import { DataTable } from "../../shared/ui/DataTable";
+import { PageShell } from "../../shared/ui/PageShell";
 
 export function DocumentsPage() {
   const navigate = useNavigate();
@@ -45,78 +47,68 @@ export function DocumentsPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <AppHeader />
-      <main className={styles.content}>
-        <div className={styles.intro}>
-          <span className={styles.eyebrow}>Estudos técnicos preliminares</span>
-          <h1>Documentos da organização</h1>
-          <p>
-            Cada documento segue um roteiro institucional e gera o PDF oficial
-            pelo mesmo pipeline usado na exportação.
-          </p>
+    <PageShell header={<AppHeader />}>
+      <PageHeading
+        eyebrow="Estudos técnicos preliminares"
+        title="Documentos da organização"
+        description="Cada documento segue um roteiro institucional e gera o PDF oficial pelo mesmo pipeline usado na exportação."
+      />
+
+      <form className="flex items-end gap-3" onSubmit={submit} noValidate>
+        <div className="flex-1">
+          <TextField
+            label="Título do novo ETP"
+            name="title"
+            value={title}
+            maxLength={300}
+            placeholder="Aquisição de notebooks"
+            disabled={create.isPending}
+            onChange={setTitle}
+          />
         </div>
+        <Button type="submit" variant="primary" disabled={create.isPending}>
+          {create.isPending ? "Criando…" : "Criar ETP"}
+        </Button>
+      </form>
 
-        <form className={styles.createCard} onSubmit={submit} noValidate>
-          <label className={styles.field}>
-            <span>Título do novo ETP</span>
-            <input
-              name="title"
-              value={title}
-              maxLength={300}
-              placeholder="Aquisição de notebooks"
-              disabled={create.isPending}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </label>
-          <button type="submit" disabled={create.isPending}>
-            {create.isPending ? "Criando…" : "Criar ETP"}
-          </button>
-        </form>
+      {error && <p role="alert">{error}</p>}
 
-        {error && (
-          <p className={styles.error} role="alert">
-            {error}
+      <section aria-labelledby="documents-title">
+        <h2 id="documents-title" className="ds-label mb-3">
+          Documentos existentes
+        </h2>
+        {documents.isPending && <p role="status">Carregando documentos…</p>}
+        {documents.isError && (
+          <p role="alert">
+            Não foi possível carregar os documentos.{" "}
+            <Button small onClick={() => void documents.refetch()}>
+              Tentar novamente
+            </Button>
           </p>
         )}
-
-        <section
-          aria-labelledby="documents-title"
-          className={styles.listRegion}
-        >
-          <h2 id="documents-title">Documentos existentes</h2>
-          {documents.isPending && <p role="status">Carregando documentos…</p>}
-          {documents.isError && (
-            <p role="alert">
-              Não foi possível carregar os documentos.{" "}
-              <button type="button" onClick={() => void documents.refetch()}>
-                Tentar novamente
-              </button>
-            </p>
-          )}
-          {documents.isSuccess && documents.data.length === 0 && (
-            <p className={styles.empty}>
-              Nenhum documento ainda. Crie o primeiro ETP acima.
-            </p>
-          )}
-          {documents.isSuccess && documents.data.length > 0 && (
-            <ul className={styles.list}>
-              {documents.data.map((summary) => (
-                <li key={summary.id}>
-                  <Link to={`/documentos/${summary.id}`}>
-                    <strong>{summary.title}</strong>
-                    <span>
-                      Revisão {summary.revision} ·{" "}
-                      {formatUpdatedAt(summary.updatedAt)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </main>
-    </div>
+        {documents.isSuccess && (
+          <DataTable
+            columns={["Documento", "Revisão", "Atualizado"]}
+            empty="Nenhum documento ainda. Crie o primeiro ETP acima."
+            rows={documents.data.map((summary) => ({
+              key: summary.id,
+              cells: [
+                {
+                  emphasis: true,
+                  content: (
+                    <Link to={`/documentos/${summary.id}`}>
+                      {summary.title}
+                    </Link>
+                  ),
+                },
+                { content: summary.revision, numeric: true },
+                { content: formatUpdatedAt(summary.updatedAt) },
+              ],
+            }))}
+          />
+        )}
+      </section>
+    </PageShell>
   );
 }
 
