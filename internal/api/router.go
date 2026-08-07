@@ -17,8 +17,9 @@ func NewRouter(dependencies Dependencies) http.Handler {
 	mux := http.NewServeMux()
 	config := huma.DefaultConfig("Etpeto API", "0.1.0")
 	api := humago.New(mux, config)
+	protected := guard{authentication: dependencies.Auth}
 	registerHealth(api, dependencies.Readiness)
-	registerPreview(api, dependencies.Renderer)
+	registerPreview(api, dependencies.Renderer, protected)
 	registerAuth(api, dependencies.Auth)
 	return mux
 }

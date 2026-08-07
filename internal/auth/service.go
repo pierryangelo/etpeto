@@ -24,17 +24,22 @@ type Account struct {
 type SessionRecord struct {
 	UserID    string
 	TokenHash []byte
+	CSRFHash  []byte
 	ExpiresAt time.Time
 }
 
+// AuthenticatedUser describes the resolved session. CSRFHash never leaves the
+// server: mutating routes compare it against the token sent in a request header.
 type AuthenticatedUser struct {
 	ID          string    `json:"id"`
 	DisplayName string    `json:"displayName"`
 	ExpiresAt   time.Time `json:"-"`
+	CSRFHash    []byte    `json:"-"`
 }
 
 type LoginResult struct {
 	Token     string
+	CSRFToken string
 	ExpiresAt time.Time
 	User      AuthenticatedUser
 }
@@ -110,12 +115,14 @@ func (s *Service) Login(
 	if err := s.repository.CreateSession(ctx, SessionRecord{
 		UserID:    account.UserID,
 		TokenHash: issued.Hash[:],
+		CSRFHash:  issued.CSRFHash[:],
 		ExpiresAt: issued.ExpiresAt,
 	}); err != nil {
 		return LoginResult{}, fmt.Errorf("create session: %w", err)
 	}
 	return LoginResult{
 		Token:     issued.Token,
+		CSRFToken: issued.CSRFToken,
 		ExpiresAt: issued.ExpiresAt,
 		User: AuthenticatedUser{
 			ID:          account.UserID,

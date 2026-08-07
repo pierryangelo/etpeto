@@ -13,9 +13,14 @@ import (
 
 const sessionTokenBytes = 32
 
+// IssuedSession carries the opaque session token kept in an HttpOnly cookie and
+// the CSRF token bound to it. The CSRF token is deliberately readable by the
+// browser so a reloaded page can restore it; only its hash reaches the database.
 type IssuedSession struct {
 	Token     string
 	Hash      [sha256.Size]byte
+	CSRFToken string
+	CSRFHash  [sha256.Size]byte
 	ExpiresAt time.Time
 }
 
@@ -41,10 +46,15 @@ func (i SessionIssuer) Issue() (IssuedSession, error) {
 	if _, err := io.ReadFull(random, raw); err != nil {
 		return IssuedSession{}, fmt.Errorf("generate session token: %w", err)
 	}
-	token := base64.RawURLEncoding.EncodeToString(raw)
+	csrfRaw := make([]byte, sessionTokenBytes)
+	if _, err := io.ReadFull(random, csrfRaw); err != nil {
+		return IssuedSession{}, fmt.Errorf("generate CSRF token: %w", err)
+	}
 	return IssuedSession{
-		Token:     token,
+		Token:     base64.RawURLEncoding.EncodeToString(raw),
 		Hash:      sha256.Sum256(raw),
+		CSRFToken: base64.RawURLEncoding.EncodeToString(csrfRaw),
+		CSRFHash:  sha256.Sum256(csrfRaw),
 		ExpiresAt: now().UTC().Add(i.TTL),
 	}, nil
 }

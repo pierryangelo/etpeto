@@ -27,8 +27,8 @@ func (r *previewRendererStub) Render(_ context.Context, request rendercontract.R
 
 func TestPreviewReturnsRendererPDF(t *testing.T) {
 	renderer := &previewRendererStub{pdf: renderclient.PDF{Bytes: []byte("%PDF fixture"), ETag: `"hash"`}}
-	handler := NewRouter(Dependencies{Readiness: readyStub{}, Renderer: renderer})
-	response := postPreview(t, handler, validPreviewRequest())
+	handler := previewHandler(renderer)
+	response := postPreview(t, handler, validPreviewRequest(), validCredentials())
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusOK, response.Body.String())
@@ -44,12 +44,47 @@ func TestPreviewReturnsRendererPDF(t *testing.T) {
 	}
 }
 
+func TestPreviewRejectsAnonymousRequest(t *testing.T) {
+	renderer := &previewRendererStub{}
+	response := postPreview(t, previewHandler(renderer), validPreviewRequest(), credentials{})
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusUnauthorized, response.Body.String())
+	}
+	if renderer.request.Title != "" {
+		t.Fatal("anonymous request reached the renderer")
+	}
+}
+
+func TestPreviewRejectsMissingOrForgedCSRFToken(t *testing.T) {
+	tests := []struct {
+		name  string
+		given credentials
+	}{
+		{name: "missing token", given: credentials{session: validSessionToken}},
+		{name: "forged token", given: credentials{session: validSessionToken, csrf: forgedCSRFToken}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			renderer := &previewRendererStub{}
+			response := postPreview(t, previewHandler(renderer), validPreviewRequest(), test.given)
+
+			if response.Code != http.StatusForbidden {
+				t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusForbidden, response.Body.String())
+			}
+			if renderer.request.Title != "" {
+				t.Fatal("request without a valid CSRF token reached the renderer")
+			}
+		})
+	}
+}
+
 func TestPreviewRejectsInvalidContract(t *testing.T) {
 	renderer := &previewRendererStub{}
-	handler := NewRouter(Dependencies{Readiness: readyStub{}, Renderer: renderer})
+	handler := previewHandler(renderer)
 	request := validPreviewRequest()
 	request.SchemaVersion = 99
-	response := postPreview(t, handler, request)
+	response := postPreview(t, handler, request, validCredentials())
 
 	if response.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusUnprocessableEntity, response.Body.String())
@@ -61,8 +96,8 @@ func TestPreviewRejectsInvalidContract(t *testing.T) {
 
 func TestPreviewHidesRendererFailure(t *testing.T) {
 	renderer := &previewRendererStub{err: errors.New("secret renderer endpoint")}
-	handler := NewRouter(Dependencies{Readiness: readyStub{}, Renderer: renderer})
-	response := postPreview(t, handler, validPreviewRequest())
+	handler := previewHandler(renderer)
+	response := postPreview(t, handler, validPreviewRequest(), validCredentials())
 
 	if response.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusServiceUnavailable)
@@ -75,7 +110,20 @@ func TestPreviewHidesRendererFailure(t *testing.T) {
 	}
 }
 
-func postPreview(t *testing.T, handler http.Handler, request rendercontract.Request) *httptest.ResponseRecorder {
+func previewHandler(renderer PreviewRenderer) http.Handler {
+	return NewRouter(Dependencies{
+		Readiness: readyStub{},
+		Renderer:  renderer,
+		Auth:      &authStub{authUser: authenticatedTestUser()},
+	})
+}
+
+func postPreview(
+	t *testing.T,
+	handler http.Handler,
+	request rendercontract.Request,
+	given credentials,
+) *httptest.ResponseRecorder {
 	t.Helper()
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -83,6 +131,7 @@ func postPreview(t *testing.T, handler http.Handler, request rendercontract.Requ
 	}
 	httpRequest := httptest.NewRequest(http.MethodPost, "/api/v1/previews", bytes.NewReader(body))
 	httpRequest.Header.Set("Content-Type", "application/json")
+	given.apply(httpRequest)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httpRequest)
 	return response

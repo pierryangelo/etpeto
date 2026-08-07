@@ -51,6 +51,7 @@ func (r PostgresRepository) CreateSession(ctx context.Context, record SessionRec
 	_, err = r.Queries.CreateSession(ctx, dbgen.CreateSessionParams{
 		UserID:    userID,
 		TokenHash: record.TokenHash,
+		CsrfHash:  record.CSRFHash,
 		ExpiresAt: pgtype.Timestamptz{Time: record.ExpiresAt, Valid: true},
 	})
 	return err
@@ -74,6 +75,7 @@ func (r PostgresRepository) FindActiveSession(
 		ID:          formatUUID(row.ID),
 		DisplayName: row.DisplayName,
 		ExpiresAt:   row.ExpiresAt.Time,
+		CSRFHash:    row.CsrfHash,
 	}, nil
 }
 

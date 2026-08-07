@@ -111,15 +111,21 @@ func TestFoundationMigrationEnforcesNormalizedLocalEmailUniqueness(t *testing.T)
 		t.Fatalf("find local account = %#v, %v", account, err)
 	}
 	tokenHash := bytes.Repeat([]byte{0x55}, 32)
+	csrfHash := bytes.Repeat([]byte{0x66}, 32)
 	if err := authRepository.CreateSession(ctx, authdomain.SessionRecord{
 		UserID:    account.UserID,
 		TokenHash: tokenHash,
+		CSRFHash:  csrfHash,
 		ExpiresAt: time.Now().UTC().Add(time.Hour),
 	}); err != nil {
 		t.Fatalf("create auth session: %v", err)
 	}
-	if _, err := authRepository.FindActiveSession(ctx, tokenHash); err != nil {
+	session, err := authRepository.FindActiveSession(ctx, tokenHash)
+	if err != nil {
 		t.Fatalf("find active session: %v", err)
+	}
+	if !bytes.Equal(session.CSRFHash, csrfHash) {
+		t.Fatalf("session CSRF hash = %x, want %x", session.CSRFHash, csrfHash)
 	}
 	if err := authRepository.RevokeSession(ctx, tokenHash); err != nil {
 		t.Fatalf("revoke session: %v", err)

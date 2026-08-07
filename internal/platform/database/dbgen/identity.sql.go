@@ -106,24 +106,41 @@ func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganization
 }
 
 const createSession = `-- name: CreateSession :one
-INSERT INTO sessions (user_id, token_hash, expires_at)
-VALUES ($1, $2, $3)
-RETURNING id, user_id, token_hash, expires_at, revoked_at, created_at
+INSERT INTO sessions (user_id, token_hash, csrf_hash, expires_at)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, token_hash, csrf_hash, expires_at, revoked_at, created_at
 `
 
 type CreateSessionParams struct {
 	UserID    pgtype.UUID        `db:"user_id" json:"user_id"`
 	TokenHash []byte             `db:"token_hash" json:"token_hash"`
+	CsrfHash  []byte             `db:"csrf_hash" json:"csrf_hash"`
 	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 }
 
-func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
-	row := q.db.QueryRow(ctx, createSession, arg.UserID, arg.TokenHash, arg.ExpiresAt)
-	var i Session
+type CreateSessionRow struct {
+	ID        pgtype.UUID        `db:"id" json:"id"`
+	UserID    pgtype.UUID        `db:"user_id" json:"user_id"`
+	TokenHash []byte             `db:"token_hash" json:"token_hash"`
+	CsrfHash  []byte             `db:"csrf_hash" json:"csrf_hash"`
+	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	RevokedAt pgtype.Timestamptz `db:"revoked_at" json:"revoked_at"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (CreateSessionRow, error) {
+	row := q.db.QueryRow(ctx, createSession,
+		arg.UserID,
+		arg.TokenHash,
+		arg.CsrfHash,
+		arg.ExpiresAt,
+	)
+	var i CreateSessionRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.TokenHash,
+		&i.CsrfHash,
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.CreatedAt,
@@ -150,7 +167,7 @@ func (q *Queries) CreateUser(ctx context.Context, displayName string) (User, err
 }
 
 const findActiveSession = `-- name: FindActiveSession :one
-SELECT users.id, users.display_name, sessions.expires_at
+SELECT users.id, users.display_name, sessions.expires_at, sessions.csrf_hash
 FROM sessions
 JOIN users ON users.id = sessions.user_id
 WHERE sessions.token_hash = $1
@@ -163,12 +180,18 @@ type FindActiveSessionRow struct {
 	ID          pgtype.UUID        `db:"id" json:"id"`
 	DisplayName string             `db:"display_name" json:"display_name"`
 	ExpiresAt   pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	CsrfHash    []byte             `db:"csrf_hash" json:"csrf_hash"`
 }
 
 func (q *Queries) FindActiveSession(ctx context.Context, tokenHash []byte) (FindActiveSessionRow, error) {
 	row := q.db.QueryRow(ctx, findActiveSession, tokenHash)
 	var i FindActiveSessionRow
-	err := row.Scan(&i.ID, &i.DisplayName, &i.ExpiresAt)
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.ExpiresAt,
+		&i.CsrfHash,
+	)
 	return i, err
 }
 

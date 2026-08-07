@@ -43,6 +43,7 @@ type Session struct {
 	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 	RevokedAt pgtype.Timestamptz `db:"revoked_at" json:"revoked_at"`
 	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CsrfHash  []byte             `db:"csrf_hash" json:"csrf_hash"`
 }
 
 type User struct {

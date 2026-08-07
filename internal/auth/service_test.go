@@ -38,6 +38,15 @@ func TestServiceLoginNormalizesEmailAndPersistsOnlyTokenHash(t *testing.T) {
 	if result.User.DisplayName != "Pessoa Autora" || result.ExpiresAt != now.Add(time.Hour) {
 		t.Fatalf("login result = %#v", result)
 	}
+	if result.CSRFToken == "" {
+		t.Fatal("login result carried no CSRF token")
+	}
+	if !MatchesTokenHash(repository.created.CSRFHash, result.CSRFToken) {
+		t.Fatalf("stored CSRF hash = %x does not match the issued token", repository.created.CSRFHash)
+	}
+	if bytes.Contains(repository.created.CSRFHash, []byte(result.CSRFToken)) {
+		t.Fatal("raw CSRF token was persisted")
+	}
 }
 
 func TestServiceLoginUsesOneGenericCredentialError(t *testing.T) {
@@ -70,7 +79,7 @@ func TestServiceLoginUsesOneGenericCredentialError(t *testing.T) {
 func TestServiceAuthenticatesAndRevokesCurrentSession(t *testing.T) {
 	now := time.Date(2026, 8, 6, 12, 0, 0, 0, time.UTC)
 	issuer := SessionIssuer{
-		Random: bytes.NewReader(bytes.Repeat([]byte{0x33}, sessionTokenBytes)),
+		Random: stubRandom(0x33, 0x44),
 		Now:    func() time.Time { return now },
 		TTL:    time.Hour,
 	}

@@ -35,9 +35,9 @@ VALUES ($1, $2, $3)
 RETURNING id, organization_id, user_id, role, created_at;
 
 -- name: CreateSession :one
-INSERT INTO sessions (user_id, token_hash, expires_at)
-VALUES ($1, $2, $3)
-RETURNING id, user_id, token_hash, expires_at, revoked_at, created_at;
+INSERT INTO sessions (user_id, token_hash, csrf_hash, expires_at)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, token_hash, csrf_hash, expires_at, revoked_at, created_at;
 
 -- name: RevokeSession :execrows
 UPDATE sessions
@@ -56,7 +56,7 @@ WHERE organizations.slug = $1
   AND users.disabled_at IS NULL;
 
 -- name: FindActiveSession :one
-SELECT users.id, users.display_name, sessions.expires_at
+SELECT users.id, users.display_name, sessions.expires_at, sessions.csrf_hash
 FROM sessions
 JOIN users ON users.id = sessions.user_id
 WHERE sessions.token_hash = $1

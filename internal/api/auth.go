@@ -4,13 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	authdomain "github.com/etpeto/etpeto/internal/auth"
 )
-
-const sessionCookieName = "__Host-etpeto_session"
 
 type AuthService interface {
 	Login(context.Context, string, string) (authdomain.LoginResult, error)
@@ -32,12 +29,17 @@ type SessionBody struct {
 }
 
 type LoginOutput struct {
-	SetCookie http.Cookie `header:"Set-Cookie"`
+	SetCookie []http.Cookie `header:"Set-Cookie"`
 	Body      SessionBody
 }
 
 type SessionInput struct {
 	Session string `cookie:"__Host-etpeto_session"`
+}
+
+type MutationInput struct {
+	Session string `cookie:"__Host-etpeto_session"`
+	CSRF    string `header:"X-Etpeto-Csrf"`
 }
 
 type SessionOutput struct {
@@ -46,10 +48,11 @@ type SessionOutput struct {
 
 type LogoutOutput struct {
 	Status    int
-	SetCookie http.Cookie `header:"Set-Cookie"`
+	SetCookie []http.Cookie `header:"Set-Cookie"`
 }
 
 func registerAuth(api huma.API, authentication AuthService) {
+	protected := guard{authentication: authentication}
 	huma.Register(api, huma.Operation{
 		OperationID:  "local-login",
 		Method:       http.MethodPost,
@@ -69,8 +72,11 @@ func registerAuth(api huma.API, authentication AuthService) {
 			return nil, huma.Error503ServiceUnavailable("Autenticação temporariamente indisponível")
 		}
 		return &LoginOutput{
-			SetCookie: activeSessionCookie(result.Token, result.ExpiresAt),
-			Body:      SessionBody{User: result.User},
+			SetCookie: []http.Cookie{
+				activeSessionCookie(result.Token, result.ExpiresAt),
+				activeCSRFCookie(result.CSRFToken, result.ExpiresAt),
+			},
+			Body: SessionBody{User: result.User},
 		}, nil
 	})
 
@@ -81,15 +87,9 @@ func registerAuth(api huma.API, authentication AuthService) {
 		Summary:     "Describe the current Etpeto session",
 		Tags:        []string{"Authentication"},
 	}, func(ctx context.Context, input *SessionInput) (*SessionOutput, error) {
-		if authentication == nil {
-			return nil, huma.Error503ServiceUnavailable("Autenticação temporariamente indisponível")
-		}
-		user, err := authentication.Authenticate(ctx, input.Session)
-		if errors.Is(err, authdomain.ErrInvalidSession) {
-			return nil, huma.Error401Unauthorized("Sessão inválida ou expirada")
-		}
+		user, err := protected.authenticate(ctx, input.Session)
 		if err != nil {
-			return nil, huma.Error503ServiceUnavailable("Autenticação temporariamente indisponível")
+			return nil, err
 		}
 		return &SessionOutput{Body: SessionBody{User: user}}, nil
 	})
@@ -100,41 +100,26 @@ func registerAuth(api huma.API, authentication AuthService) {
 		Path:        "/api/v1/auth/logout",
 		Summary:     "Revoke the current Etpeto session",
 		Tags:        []string{"Authentication"},
-	}, func(ctx context.Context, input *SessionInput) (*LogoutOutput, error) {
-		if authentication == nil {
-			return nil, huma.Error503ServiceUnavailable("Autenticação temporariamente indisponível")
+	}, func(ctx context.Context, input *MutationInput) (*LogoutOutput, error) {
+		cleared := &LogoutOutput{
+			Status:    http.StatusNoContent,
+			SetCookie: []http.Cookie{expiredSessionCookie(), expiredCSRFCookie()},
+		}
+		// Signing out an already invalid session is not a state change, so it
+		// stays idempotent and still clears the browser cookies.
+		if _, err := protected.authenticate(ctx, input.Session); err != nil {
+			var status huma.StatusError
+			if errors.As(err, &status) && status.GetStatus() == http.StatusUnauthorized {
+				return cleared, nil
+			}
+			return nil, err
+		}
+		if _, err := protected.authorizeMutation(ctx, input.Session, input.CSRF); err != nil {
+			return nil, err
 		}
 		if err := authentication.Logout(ctx, input.Session); err != nil {
 			return nil, huma.Error503ServiceUnavailable("Autenticação temporariamente indisponível")
 		}
-		return &LogoutOutput{
-			Status:    http.StatusNoContent,
-			SetCookie: expiredSessionCookie(),
-		}, nil
+		return cleared, nil
 	})
-}
-
-func activeSessionCookie(token string, expiresAt time.Time) http.Cookie {
-	return http.Cookie{
-		Name:     sessionCookieName,
-		Value:    token,
-		Path:     "/",
-		Expires:  expiresAt,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-func expiredSessionCookie() http.Cookie {
-	return http.Cookie{
-		Name:     sessionCookieName,
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(1, 0).UTC(),
-		MaxAge:   -1,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-	}
 }
