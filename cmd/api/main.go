@@ -11,28 +11,35 @@ import (
 	"time"
 
 	"github.com/etpeto/etpeto/internal/api"
+	authdomain "github.com/etpeto/etpeto/internal/auth"
 	"github.com/etpeto/etpeto/internal/platform/database"
+	"github.com/etpeto/etpeto/internal/platform/database/dbgen"
 	"github.com/etpeto/etpeto/internal/renderclient"
 )
 
 const defaultAddress = ":8080"
 
 type config struct {
-	Address       string
-	DatabaseURL   string
-	RendererURL   string
-	RendererToken string
+	Address          string
+	DatabaseURL      string
+	RendererURL      string
+	RendererToken    string
+	OrganizationSlug string
 }
 
 func loadConfig(getenv func(string) string) (config, error) {
 	configuration := config{
-		Address:       getenv("ETPETO_API_ADDR"),
-		DatabaseURL:   getenv("ETPETO_DATABASE_URL"),
-		RendererURL:   getenv("ETPETO_RENDERER_URL"),
-		RendererToken: getenv("ETPETO_RENDERER_TOKEN"),
+		Address:          getenv("ETPETO_API_ADDR"),
+		DatabaseURL:      getenv("ETPETO_DATABASE_URL"),
+		RendererURL:      getenv("ETPETO_RENDERER_URL"),
+		RendererToken:    getenv("ETPETO_RENDERER_TOKEN"),
+		OrganizationSlug: getenv("ETPETO_ORGANIZATION_SLUG"),
 	}
 	if configuration.Address == "" {
 		configuration.Address = defaultAddress
+	}
+	if configuration.OrganizationSlug == "" {
+		configuration.OrganizationSlug = "default"
 	}
 	if configuration.DatabaseURL == "" {
 		return config{}, errors.New("ETPETO_DATABASE_URL is required")
@@ -61,6 +68,18 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
+	authentication, err := authdomain.NewService(
+		authdomain.PostgresRepository{
+			Queries:          dbgen.New(pool),
+			OrganizationSlug: configuration.OrganizationSlug,
+		},
+		authdomain.PasswordHasher{},
+		authdomain.SessionIssuer{TTL: 12 * time.Hour},
+	)
+	if err != nil {
+		slog.Error("authentication initialization failed", "error", err)
+		os.Exit(1)
+	}
 
 	server := &http.Server{
 		Addr: configuration.Address,
@@ -71,6 +90,7 @@ func main() {
 				Token:   configuration.RendererToken,
 				HTTP:    &http.Client{Timeout: 20 * time.Second},
 			},
+			Auth: authentication,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

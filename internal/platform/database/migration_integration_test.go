@@ -3,12 +3,15 @@
 package database
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
 	"os"
 	"testing"
+	"time"
 
+	authdomain "github.com/etpeto/etpeto/internal/auth"
 	"github.com/etpeto/etpeto/internal/platform/database/dbgen"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -97,5 +100,31 @@ func TestFoundationMigrationEnforcesNormalizedLocalEmailUniqueness(t *testing.T)
 	var postgresError *pgconn.PgError
 	if !errors.As(err, &postgresError) || postgresError.Code != "23505" {
 		t.Fatalf("duplicate error = %v, want PostgreSQL unique violation", err)
+	}
+
+	authRepository := authdomain.PostgresRepository{
+		Queries:          queries,
+		OrganizationSlug: "orgao-teste",
+	}
+	account, err := authRepository.FindLocalAccount(ctx, "pessoa@orgao.gov.br")
+	if err != nil || account.DisplayName != "Primeira Pessoa" {
+		t.Fatalf("find local account = %#v, %v", account, err)
+	}
+	tokenHash := bytes.Repeat([]byte{0x55}, 32)
+	if err := authRepository.CreateSession(ctx, authdomain.SessionRecord{
+		UserID:    account.UserID,
+		TokenHash: tokenHash,
+		ExpiresAt: time.Now().UTC().Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("create auth session: %v", err)
+	}
+	if _, err := authRepository.FindActiveSession(ctx, tokenHash); err != nil {
+		t.Fatalf("find active session: %v", err)
+	}
+	if err := authRepository.RevokeSession(ctx, tokenHash); err != nil {
+		t.Fatalf("revoke session: %v", err)
+	}
+	if _, err := authRepository.FindActiveSession(ctx, tokenHash); !errors.Is(err, authdomain.ErrSessionNotFound) {
+		t.Fatalf("revoked session lookup error = %v", err)
 	}
 }

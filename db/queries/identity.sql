@@ -45,3 +45,21 @@ SET revoked_at = now()
 WHERE token_hash = $1
   AND revoked_at IS NULL;
 
+-- name: FindLocalAccountByNormalizedEmail :one
+SELECT users.id, users.display_name, identities.password_hash
+FROM identities
+JOIN users ON users.id = identities.user_id
+JOIN organizations ON organizations.id = identities.organization_id
+WHERE organizations.slug = $1
+  AND identities.provider = 'local'
+  AND identities.email_normalized = $2
+  AND users.disabled_at IS NULL;
+
+-- name: FindActiveSession :one
+SELECT users.id, users.display_name, sessions.expires_at
+FROM sessions
+JOIN users ON users.id = sessions.user_id
+WHERE sessions.token_hash = $1
+  AND sessions.revoked_at IS NULL
+  AND sessions.expires_at > now()
+  AND users.disabled_at IS NULL;

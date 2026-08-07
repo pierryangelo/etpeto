@@ -10,6 +10,7 @@ import (
 type Dependencies struct {
 	Readiness ReadinessChecker
 	Renderer  PreviewRenderer
+	Auth      AuthService
 }
 
 func NewRouter(dependencies Dependencies) http.Handler {
@@ -18,5 +19,6 @@ func NewRouter(dependencies Dependencies) http.Handler {
 	api := humago.New(mux, config)
 	registerHealth(api, dependencies.Readiness)
 	registerPreview(api, dependencies.Renderer)
+	registerAuth(api, dependencies.Auth)
 	return mux
 }

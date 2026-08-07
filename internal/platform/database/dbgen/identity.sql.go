@@ -149,6 +149,58 @@ func (q *Queries) CreateUser(ctx context.Context, displayName string) (User, err
 	return i, err
 }
 
+const findActiveSession = `-- name: FindActiveSession :one
+SELECT users.id, users.display_name, sessions.expires_at
+FROM sessions
+JOIN users ON users.id = sessions.user_id
+WHERE sessions.token_hash = $1
+  AND sessions.revoked_at IS NULL
+  AND sessions.expires_at > now()
+  AND users.disabled_at IS NULL
+`
+
+type FindActiveSessionRow struct {
+	ID          pgtype.UUID        `db:"id" json:"id"`
+	DisplayName string             `db:"display_name" json:"display_name"`
+	ExpiresAt   pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+}
+
+func (q *Queries) FindActiveSession(ctx context.Context, tokenHash []byte) (FindActiveSessionRow, error) {
+	row := q.db.QueryRow(ctx, findActiveSession, tokenHash)
+	var i FindActiveSessionRow
+	err := row.Scan(&i.ID, &i.DisplayName, &i.ExpiresAt)
+	return i, err
+}
+
+const findLocalAccountByNormalizedEmail = `-- name: FindLocalAccountByNormalizedEmail :one
+SELECT users.id, users.display_name, identities.password_hash
+FROM identities
+JOIN users ON users.id = identities.user_id
+JOIN organizations ON organizations.id = identities.organization_id
+WHERE organizations.slug = $1
+  AND identities.provider = 'local'
+  AND identities.email_normalized = $2
+  AND users.disabled_at IS NULL
+`
+
+type FindLocalAccountByNormalizedEmailParams struct {
+	Slug            string `db:"slug" json:"slug"`
+	EmailNormalized string `db:"email_normalized" json:"email_normalized"`
+}
+
+type FindLocalAccountByNormalizedEmailRow struct {
+	ID           pgtype.UUID `db:"id" json:"id"`
+	DisplayName  string      `db:"display_name" json:"display_name"`
+	PasswordHash pgtype.Text `db:"password_hash" json:"password_hash"`
+}
+
+func (q *Queries) FindLocalAccountByNormalizedEmail(ctx context.Context, arg FindLocalAccountByNormalizedEmailParams) (FindLocalAccountByNormalizedEmailRow, error) {
+	row := q.db.QueryRow(ctx, findLocalAccountByNormalizedEmail, arg.Slug, arg.EmailNormalized)
+	var i FindLocalAccountByNormalizedEmailRow
+	err := row.Scan(&i.ID, &i.DisplayName, &i.PasswordHash)
+	return i, err
+}
+
 const findLocalIdentityByNormalizedEmail = `-- name: FindLocalIdentityByNormalizedEmail :one
 SELECT id, organization_id, user_id, provider, issuer, subject,
        email, email_normalized, password_hash, created_at
