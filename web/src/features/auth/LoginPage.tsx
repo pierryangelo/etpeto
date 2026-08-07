@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { z } from "zod";
 
+import { api } from "../../shared/api/client";
 import styles from "./LoginPage.module.css";
 
 const credentialsSchema = z.object({
@@ -135,21 +136,11 @@ export function LoginPage({
 }
 
 async function requestLogin(credentials: LoginCredentials) {
-  const response = await fetch("/api/v1/auth/local/login", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(credentials),
-  });
-  if (!response.ok) throw new Error("login failed");
+  await api.login(credentials.email, credentials.password);
 }
 
 async function requestSessionConfirmation() {
-  const response = await fetch("/api/v1/auth/session", {
-    credentials: "include",
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) throw new Error("session confirmation failed");
+  await api.session();
 }
 
 function navigateBrowser(path: string) {

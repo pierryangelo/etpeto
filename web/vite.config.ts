@@ -34,7 +34,9 @@ export default defineConfig({
     execArgv: ["--no-experimental-webstorage"],
     environmentOptions: {
       jsdom: {
-        url: "http://localhost:5173",
+        // A secure origin, because the session and CSRF cookies use the
+        // __Host- prefix and are rejected by the browser without it.
+        url: "https://localhost:5173",
       },
     },
     setupFiles: "./vitest.setup.ts",

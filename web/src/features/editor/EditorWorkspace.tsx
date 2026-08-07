@@ -1,18 +1,15 @@
 import type { SerializedEditorState } from "lexical";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router";
 
+import type { DocumentContent, DocumentSection } from "../../shared/api/client";
+import { AppHeader } from "../../shared/ui/AppHeader";
 import { RichTextElement } from "./RichTextElement";
+import { DocumentPreview } from "./DocumentPreview";
+import { useDocumentEditor, type SaveState } from "./useDocumentEditor";
 import styles from "./EditorWorkspace.module.css";
 
 const layoutStorageKey = "etpeto:editor-layout:v1";
-
-const sections = [
-  { label: "Necessidade", state: "done" },
-  { label: "Requisitos", state: "active" },
-  { label: "Pesquisa de preços", state: "todo" },
-  { label: "Mapa de riscos", state: "todo" },
-  { label: "Conclusão", state: "todo" },
-] as const;
 
 type MobileMode = "outline" | "editor" | "preview";
 
@@ -22,6 +19,7 @@ type LayoutPreference = {
 };
 
 type EditorWorkspaceProps = {
+  documentId?: string;
   compact?: boolean;
 };
 
@@ -29,24 +27,6 @@ const defaultPreference: LayoutPreference = {
   outlineOpen: true,
   previewOpen: true,
 };
-
-const requirementsInitialState = {
-  root: {
-    children: [
-      lexicalParagraph(
-        "Os equipamentos deverão atender às atividades administrativas e técnicas, com desempenho compatível com o ciclo de uso previsto.",
-      ),
-      lexicalParagraph(
-        "A contratação deverá incluir garantia, suporte e critérios de eficiência energética verificáveis.",
-      ),
-    ],
-    direction: null,
-    format: "",
-    indent: 0,
-    type: "root",
-    version: 1,
-  },
-} as SerializedEditorState;
 
 function readPreference(): LayoutPreference {
   try {
@@ -88,11 +68,25 @@ function useSmallViewport(): boolean {
   return matches;
 }
 
-export function EditorWorkspace({ compact }: EditorWorkspaceProps) {
+export function EditorWorkspace({ documentId, compact }: EditorWorkspaceProps) {
+  const params = useParams();
+  const resolvedId = documentId ?? params.id ?? "";
   const smallViewport = useSmallViewport();
   const isCompact = compact ?? smallViewport;
   const [preference, setPreference] = useState(readPreference);
   const [mobileMode, setMobileMode] = useState<MobileMode>("editor");
+  const [activeSectionId, setActiveSectionId] = useState("");
+
+  const editor = useDocumentEditor(resolvedId);
+  const draft = editor.draft;
+
+  const activeSection = useMemo(() => {
+    if (!draft) return undefined;
+    return (
+      draft.sections.find((section) => section.id === activeSectionId) ??
+      draft.sections[0]
+    );
+  }, [activeSectionId, draft]);
 
   function updatePreference(next: LayoutPreference) {
     setPreference(next);
@@ -103,14 +97,89 @@ export function EditorWorkspace({ compact }: EditorWorkspaceProps) {
     }
   }
 
+  if (editor.isLoading) {
+    return (
+      <div className={styles.shell}>
+        <AppHeader />
+        <p className={styles.stateMessage} role="status">
+          Carregando documento…
+        </p>
+      </div>
+    );
+  }
+
+  if (editor.loadError || !draft || !activeSection) {
+    return (
+      <div className={styles.shell}>
+        <AppHeader />
+        <p className={styles.stateMessage} role="alert">
+          Não foi possível abrir este documento. Ele pode ter sido removido ou
+          pertencer a outra organização.
+        </p>
+      </div>
+    );
+  }
+
+  const outline = (
+    <DocumentOutline
+      sections={draft.sections}
+      activeSectionId={activeSection.id}
+      compact={isCompact}
+      onSelect={(id) => {
+        setActiveSectionId(id);
+        if (isCompact) setMobileMode("editor");
+      }}
+      onCollapse={
+        isCompact
+          ? undefined
+          : () => updatePreference({ ...preference, outlineOpen: false })
+      }
+    />
+  );
+
+  const editorPanel = (
+    <DocumentEditor
+      documentId={resolvedId}
+      draft={draft}
+      section={activeSection}
+      onChangeElement={editor.updateElement}
+    />
+  );
+
+  const preview = (
+    <DocumentPreview
+      documentId={resolvedId}
+      documentTitle={draft.title}
+      revision={editor.revision}
+      compact={isCompact}
+      onBeforeRender={editor.flush}
+      onCollapse={
+        isCompact
+          ? undefined
+          : () => updatePreference({ ...preference, previewOpen: false })
+      }
+    />
+  );
+
+  const identity = (
+    <DocumentIdentity
+      title={draft.title}
+      revision={editor.revision}
+      saveState={editor.saveState}
+      compact={isCompact}
+      onReloadRemote={() => void editor.reloadRemote()}
+      onKeepLocal={() => void editor.keepLocal()}
+    />
+  );
+
   if (isCompact) {
     return (
       <div className={styles.compactShell}>
-        <DocumentHeader compact />
+        <AppHeader>{identity}</AppHeader>
         <div className={styles.compactContent}>
-          {mobileMode === "outline" && <DocumentOutline compact />}
-          {mobileMode === "editor" && <DocumentEditor />}
-          {mobileMode === "preview" && <DocumentPreview compact />}
+          {mobileMode === "outline" && outline}
+          {mobileMode === "editor" && editorPanel}
+          {mobileMode === "preview" && preview}
         </div>
         <MobileNavigation mode={mobileMode} onChange={setMobileMode} />
       </div>
@@ -119,18 +188,14 @@ export function EditorWorkspace({ compact }: EditorWorkspaceProps) {
 
   return (
     <div className={styles.shell}>
-      <DocumentHeader />
+      <AppHeader>{identity}</AppHeader>
       <div
         className={styles.workspace}
         data-outline-open={preference.outlineOpen}
         data-preview-open={preference.previewOpen}
       >
         {preference.outlineOpen ? (
-          <DocumentOutline
-            onCollapse={() =>
-              updatePreference({ ...preference, outlineOpen: false })
-            }
-          />
+          outline
         ) : (
           <CollapsedRail
             label="Roteiro"
@@ -142,14 +207,10 @@ export function EditorWorkspace({ compact }: EditorWorkspaceProps) {
           />
         )}
 
-        <DocumentEditor />
+        {editorPanel}
 
         {preference.previewOpen ? (
-          <DocumentPreview
-            onCollapse={() =>
-              updatePreference({ ...preference, previewOpen: false })
-            }
-          />
+          preview
         ) : (
           <CollapsedRail
             label="Prévia"
@@ -165,43 +226,76 @@ export function EditorWorkspace({ compact }: EditorWorkspaceProps) {
   );
 }
 
-function DocumentHeader({ compact = false }: { compact?: boolean }) {
+const saveStateLabels: Record<SaveState, string> = {
+  idle: "Sem alterações",
+  dirty: "Alterações não salvas",
+  saving: "Salvando…",
+  saved: "Salvo",
+  conflict: "Conflito detectado",
+  failed: "Falha ao salvar",
+};
+
+function DocumentIdentity({
+  title,
+  revision,
+  saveState,
+  compact,
+  onReloadRemote,
+  onKeepLocal,
+}: {
+  title: string;
+  revision: number;
+  saveState: SaveState;
+  compact: boolean;
+  onReloadRemote: () => void;
+  onKeepLocal: () => void;
+}) {
   return (
-    <header className={styles.header}>
-      <a className={styles.product} href="/" aria-label="Etpeto — documentos">
-        <span className={styles.productMark} aria-hidden="true">
-          E
-        </span>
-        {!compact && <span>Etpeto</span>}
-      </a>
-      <span className={styles.headerDivider} aria-hidden="true" />
+    <div className={styles.identity}>
       <div className={styles.documentIdentity}>
-        <strong>Aquisição de notebooks</strong>
-        {!compact && <span>ETP 014/2026</span>}
+        <strong>{title}</strong>
+        {!compact && <span>Revisão {revision}</span>}
       </div>
-      <div className={styles.saveState} role="status">
+      <div className={styles.saveState} role="status" data-state={saveState}>
         <span className={styles.saveDot} aria-hidden="true" />
-        {compact ? "Salvo" : "Salvo agora"}
+        {saveStateLabels[saveState]}
       </div>
-      {!compact && (
-        <button className={styles.secondaryButton} type="button" disabled>
-          Finalizar
-        </button>
+      {saveState === "conflict" && (
+        <div
+          className={styles.conflictActions}
+          role="group"
+          aria-label="Resolver conflito"
+        >
+          <button type="button" onClick={onReloadRemote}>
+            Recarregar do servidor
+          </button>
+          <button type="button" onClick={onKeepLocal}>
+            Manter meu texto
+          </button>
+        </div>
       )}
-      <button className={styles.primaryButton} type="button" disabled>
-        {compact ? "PDF" : "Exportar PDF"}
-      </button>
-    </header>
+    </div>
   );
 }
 
 function DocumentOutline({
-  compact = false,
+  sections,
+  activeSectionId,
+  compact,
+  onSelect,
   onCollapse,
 }: {
-  compact?: boolean;
+  sections: DocumentSection[];
+  activeSectionId: string;
+  compact: boolean;
+  onSelect: (id: string) => void;
   onCollapse?: () => void;
 }) {
+  const filled = sections.filter(sectionHasContent).length;
+  const progress = sections.length
+    ? Math.round((filled / sections.length) * 100)
+    : 0;
+
   return (
     <nav
       className={compact ? styles.compactOutline : styles.outline}
@@ -210,7 +304,7 @@ function DocumentOutline({
       <div className={styles.panelHeading}>
         <div>
           <span className={styles.panelEyebrow}>Roteiro do ETP</span>
-          <strong>5 seções</strong>
+          <strong>{sections.length} seções</strong>
         </div>
         {onCollapse && (
           <button
@@ -224,156 +318,95 @@ function DocumentOutline({
         )}
       </div>
       <ol className={styles.sectionList}>
-        {sections.map((section, index) => (
-          <li key={section.label} className={styles.sectionItem}>
-            <button
-              className={styles.sectionButton}
-              data-state={section.state}
-              type="button"
-              aria-current={section.state === "active" ? "step" : undefined}
-            >
-              <span className={styles.sectionMarker} aria-hidden="true">
-                {section.state === "done" ? "✓" : index + 1}
-              </span>
-              <span>{section.label}</span>
-              {section.state === "active" && (
-                <span className={styles.activeLabel}>Em edição</span>
-              )}
-            </button>
-          </li>
-        ))}
+        {sections.map((section, index) => {
+          const active = section.id === activeSectionId;
+          const state = active
+            ? "active"
+            : sectionHasContent(section)
+              ? "done"
+              : "todo";
+          return (
+            <li key={section.id} className={styles.sectionItem}>
+              <button
+                className={styles.sectionButton}
+                data-state={state}
+                type="button"
+                aria-current={active ? "step" : undefined}
+                onClick={() => onSelect(section.id)}
+              >
+                <span className={styles.sectionMarker} aria-hidden="true">
+                  {state === "done" ? "✓" : index + 1}
+                </span>
+                <span>{section.title}</span>
+                {active && (
+                  <span className={styles.activeLabel}>Em edição</span>
+                )}
+              </button>
+            </li>
+          );
+        })}
       </ol>
       <div className={styles.outlineProgress}>
         <span>Progresso do roteiro</span>
-        <strong>20%</strong>
+        <strong>{progress}%</strong>
         <div className={styles.progressTrack} aria-hidden="true">
-          <span />
+          <span style={{ width: `${progress}%` }} />
         </div>
       </div>
     </nav>
   );
 }
 
-function DocumentEditor() {
+function sectionHasContent(section: DocumentSection): boolean {
+  return section.elements.some((element) => {
+    const state = element.richText as
+      { root?: { children?: unknown[] } } | undefined;
+    return Boolean(state?.root?.children?.length);
+  });
+}
+
+function DocumentEditor({
+  documentId,
+  draft,
+  section,
+  onChangeElement,
+}: {
+  documentId: string;
+  draft: DocumentContent;
+  section: DocumentSection;
+  onChangeElement: (
+    sectionId: string,
+    elementId: string,
+    state: SerializedEditorState,
+  ) => void;
+}) {
+  const position =
+    draft.sections.findIndex((item) => item.id === section.id) + 1;
+
   return (
     <main className={styles.editor}>
       <article className={styles.editorCard}>
         <div className={styles.sectionContext}>
-          <span>Seção 2 de 5</span>
-          <span className={styles.requiredLabel}>Obrigatória</span>
+          <span>
+            Seção {position} de {draft.sections.length}
+          </span>
         </div>
-        <h1>Requisitos da contratação</h1>
-        <p className={styles.guidance}>
-          Descreva as condições indispensáveis para atender à necessidade,
-          evitando direcionamento de marca ou solução.
-        </p>
+        <h1>{section.title}</h1>
+        {section.guidance && (
+          <p className={styles.guidance}>{section.guidance}</p>
+        )}
 
-        <RichTextElement
-          documentId="etp-notebooks"
-          elementId="requisitos-texto"
-          initialState={requirementsInitialState}
-          onChange={() => undefined}
-        />
-
-        <section className={styles.structuredBlock}>
-          <div className={styles.blockIcon} aria-hidden="true">
-            ≋
-          </div>
-          <div>
-            <span className={styles.blockType}>Elemento estruturado</span>
-            <strong>Pesquisa de preços</strong>
-            <p>3 fontes cadastradas · estimativa de R$ 428.000,00</p>
-          </div>
-          <button type="button">Abrir</button>
-        </section>
-
-        <button className={styles.addElementButton} type="button">
-          <span aria-hidden="true">＋</span>
-          Adicionar elemento
-        </button>
+        {section.elements.map((element) => (
+          <RichTextElement
+            key={element.id}
+            documentId={documentId}
+            elementId={element.id}
+            initialState={element.richText as SerializedEditorState | undefined}
+            onChange={(state) => onChangeElement(section.id, element.id, state)}
+          />
+        ))}
       </article>
     </main>
-  );
-}
-
-function lexicalParagraph(text: string) {
-  return {
-    children: [
-      {
-        detail: 0,
-        format: 0,
-        mode: "normal",
-        style: "",
-        text,
-        type: "text",
-        version: 1,
-      },
-    ],
-    direction: null,
-    format: "",
-    indent: 0,
-    textFormat: 0,
-    textStyle: "",
-    type: "paragraph",
-    version: 1,
-  };
-}
-
-function DocumentPreview({
-  compact = false,
-  onCollapse,
-}: {
-  compact?: boolean;
-  onCollapse?: () => void;
-}) {
-  return (
-    <aside
-      className={compact ? styles.compactPreview : styles.preview}
-      aria-label="Prévia oficial"
-    >
-      <div className={styles.panelHeading}>
-        <div>
-          <span className={styles.panelEyebrow}>Documento gerado</span>
-          <strong>Prévia oficial</strong>
-        </div>
-        {onCollapse && (
-          <button
-            className={styles.iconButton}
-            type="button"
-            aria-label="Recolher prévia oficial"
-            onClick={onCollapse}
-          >
-            ›
-          </button>
-        )}
-      </div>
-      <div className={styles.previewMeta}>
-        <span>PDF · Typst</span>
-        <button type="button" disabled>
-          Atualizar
-        </button>
-      </div>
-      <div className={styles.paper} aria-hidden="true">
-        <div className={styles.paperSeal}>Etpeto</div>
-        <p>ESTUDO TÉCNICO PRELIMINAR</p>
-        <h2>Aquisição de equipamentos de tecnologia</h2>
-        <div className={styles.paperRule} />
-        <h3>2. Requisitos da contratação</h3>
-        <span className={styles.paperLine} />
-        <span className={styles.paperLine} />
-        <span className={`${styles.paperLine} ${styles.paperLineShort}`} />
-        <span className={styles.paperLine} />
-        <div className={styles.paperTable}>
-          <span />
-          <span />
-          <span />
-        </div>
-        <small>2</small>
-      </div>
-      <p className={styles.previewNotice}>
-        O PDF será atualizado depois do próximo salvamento.
-      </p>
-    </aside>
   );
 }
 

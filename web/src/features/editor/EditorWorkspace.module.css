@@ -706,3 +706,70 @@
       box-shadow 140ms ease;
   }
 }
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.stateMessage {
+  padding: var(--space-6);
+  color: var(--color-text);
+}
+
+.conflictActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.conflictActions button {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-2);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.saveState[data-state="conflict"] .saveDot,
+.saveState[data-state="failed"] .saveDot {
+  background: var(--color-danger);
+}
+
+.saveState[data-state="dirty"] .saveDot,
+.saveState[data-state="saving"] .saveDot {
+  background: var(--color-accent);
+}
+
+.previewActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.downloadLink {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-2);
+  color: var(--color-text);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.downloadLink[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.previewFrame {
+  flex: 1;
+  width: 100%;
+  min-height: 460px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  background: var(--color-paper);
+}
