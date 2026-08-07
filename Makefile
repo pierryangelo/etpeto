@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help generate fmt test test-go test-web typecheck build coverage coverage-go coverage-web check up smoke down
+.PHONY: help generate fmt test test-go test-web test-integration typecheck build coverage coverage-go coverage-web check up smoke down
 
 help: ## List canonical commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -17,6 +17,9 @@ test-go: ## Run Go tests
 
 test-web: ## Run frontend tests
 	@cd web && bun run test
+
+test-integration: ## Run integration suites (requires Docker and Typst)
+	@go test -race -tags=integration ./...
 
 test: test-go test-web ## Run unit tests
 
