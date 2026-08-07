@@ -9,6 +9,10 @@ Estado confirmado da interface:
 - o indicador `Salvo agora`, `Atualizar`, `Finalizar` e `Exportar PDF` ainda não formam um fluxo funcional;
 - a API gera PDF com Typst, mas o editor ainda não chama esse endpoint;
 - a autenticação local possui API e sessões, mas falta criar o primeiro usuário e proteger as rotas;
+- `POST /api/v1/previews` aceita qualquer requisição, sem sessão e sem limite de tentativas;
+- não existe proteção CSRF, embora a sessão por cookie já esteja em uso;
+- o frontend não tem roteamento, estado remoto nem cliente gerado a partir do OpenAPI;
+- as suítes com a tag `integration` estão escritas mas não são executadas por nenhum comando;
 - OIDC/Keycloak ainda não foi implementado.
 
 Os itens abaixo são critérios de conclusão, não estimativas ou promessa de ordem entre itens do mesmo grupo. Toda mudança de comportamento deve seguir TDD e preservar os limites descritos em [docs/architecture/foundation.md](docs/architecture/foundation.md).
@@ -24,6 +28,21 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
   - Carregar a sessão ao abrir a aplicação, proteger rotas privadas e redirecionar corretamente para `/login`.
   - Exibir usuário autenticado, permitir logout e tratar sessão expirada.
   - Cobrir login, credenciais inválidas, logout, expiração e acesso sem sessão por testes de integração.
+
+- [ ] **Completar o contrato de sessão com CSRF antes de escrever novas rotas mutáveis.**
+  - Emitir um token CSRF vinculado à sessão, entregue fora do cookie e exigido em header próprio.
+  - Recusar toda operação mutável autenticada sem token válido, comparando em tempo constante.
+  - Entrar agora, e não no endurecimento final: cada rota mutável escrita antes desta decisão terá de ser reescrita junto de seus testes.
+
+- [ ] **Exigir sessão nas rotas que consomem o renderer.**
+  - `POST /api/v1/previews` é hoje o único caminho de entrada para o Typst e aceita requisições anônimas.
+  - Autenticar a rota, limitar tentativas por sessão e manter o corpo restrito ao contrato versionado.
+  - Cobrir acesso anônimo, sessão expirada e excesso de requisições por testes.
+
+- [ ] **Fixar os contratos do frontend antes de construir telas.**
+  - Gerar cliente TypeScript e schemas Zod a partir do OpenAPI, com verificação de divergência na CI.
+  - Adotar roteamento real no lugar da comparação manual de `window.location.pathname`.
+  - Colocar todo estado remoto no TanStack Query, já instalado e ainda não utilizado.
 
 - [ ] **Persistir documentos no PostgreSQL.**
   - Criar migrations e consultas tipadas para documento, revisão, seções e conteúdo estruturado versionado.
@@ -54,6 +73,11 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
   - Registrar uma revisão final imutável ou definir explicitamente como uma finalização pode ser reaberta.
   - Validar campos obrigatórios antes de finalizar e informar pendências por seção.
   - Gerar o PDF a partir da mesma revisão marcada como final.
+
+- [ ] **Executar as suítes de integração já escritas.**
+  - `migration_integration_test.go` e `runner_integration_test.go` exigem a tag `integration` e não são chamados pelo `Makefile` nem pela CI.
+  - Expor um comando canônico e um job dedicado, com Docker disponível e Typst real.
+  - Falhar a CI quando a suíte de integração quebrar, e não apenas a unitária.
 
 - [ ] **Cobrir a jornada principal de ponta a ponta.**
   - Provisionar usuário, entrar, criar ETP, editar, salvar, atualizar prévia, exportar e sair.
@@ -89,6 +113,11 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
   - Registrar autor, instante, revisão e natureza das alterações relevantes.
   - Permitir comparar revisões e restaurar conteúdo sem apagar o histórico.
 
+- [ ] **Elevar progressivamente os pisos de cobertura até os alvos aprovados.**
+  - Os pisos atuais são 45% no Go e 65/65/60/70 no frontend; a especificação define 90% em domínio e aplicação, 80% no backend, 85/80 no frontend e 90% de patch.
+  - Subir o piso a cada corte vertical concluído, sem permitir regressão.
+  - Manter fora do percentual apenas código gerado, bootstrap, configuração e migrations, validando-os por contrato ou smoke.
+
 - [ ] **Administrar usuários, vínculos, papéis e templates.**
   - Disponibilizar telas e APIs somente para os papéis autorizados.
   - Auditar mudanças administrativas e impedir autoelevação de privilégios.
@@ -112,7 +141,7 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
   - Avaliar defesa adicional no banco antes de declarar suporte multi-tenant em produção.
 
 - [ ] **Endurecer a segurança operacional.**
-  - Definir proteção CSRF, limitação de tentativas, política de senha e revogação administrativa de sessões.
+  - Definir política de senha, limitação global de tentativas e revogação administrativa de sessões; a proteção CSRF é tratada em P0.
   - Automatizar análise de dependências, imagens, segredos, SBOM e proveniência de releases.
   - Revisar headers, cookies e configuração TLS no ambiente real de implantação.
 
