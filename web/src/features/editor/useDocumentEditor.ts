@@ -23,6 +23,7 @@ export function useDocumentEditor(documentId: string) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<DocumentContent | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const draftRef = useRef<DocumentContent | null>(null);
   const revisionRef = useRef(0);
   const pendingRef = useRef<DocumentContent | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,7 +40,9 @@ export function useDocumentEditor(documentId: string) {
   useEffect(() => {
     if (!document.data) return;
     revisionRef.current = document.data.revision;
-    setDraft((current) => current ?? document.data.content);
+    if (draftRef.current) return;
+    draftRef.current = document.data.content;
+    setDraft(document.data.content);
   }, [document.data]);
 
   const acceptStored = useCallback(
@@ -87,53 +90,67 @@ export function useDocumentEditor(documentId: string) {
     [flush],
   );
 
+  // The next draft is computed from a ref rather than inside the state updater:
+  // scheduling a save is a side effect, and running it inside the updater made
+  // a second keystroke queue the previous text.
   const updateElement = useCallback(
     (sectionId: string, elementId: string, state: SerializedEditorState) => {
-      setDraft((current) => {
-        if (!current) return current;
-        const next: DocumentContent = {
-          ...current,
-          sections: current.sections.map((section) =>
-            section.id !== sectionId
-              ? section
-              : {
-                  ...section,
-                  elements: section.elements.map((element) =>
-                    element.id !== elementId
-                      ? element
-                      : { ...element, richText: state as never },
-                  ),
-                },
-          ),
-        };
-        scheduleSave(next);
-        return next;
-      });
+      const current = draftRef.current;
+      if (!current) return;
+      const next: DocumentContent = {
+        ...current,
+        sections: current.sections.map((section) =>
+          section.id !== sectionId
+            ? section
+            : {
+                ...section,
+                elements: section.elements.map((element) =>
+                  element.id !== elementId
+                    ? element
+                    : { ...element, richText: state as never },
+                ),
+              },
+        ),
+      };
+      draftRef.current = next;
+      setDraft(next);
+      scheduleSave(next);
     },
     [scheduleSave],
   );
 
-  // A pending change must not be lost when the tab closes or the person
-  // navigates away, so the debounce is bypassed on unmount.
-  useEffect(() => flush, [flush]);
+  // A pending change must not be lost when the person navigates away, so the
+  // debounce is bypassed on unmount. The callback is reached through a ref:
+  // depending on `flush` directly would run the cleanup on every re-render that
+  // changes its identity, turning the debounce into a save per keystroke.
+  const flushRef = useRef(flush);
+  useEffect(() => {
+    flushRef.current = flush;
+  }, [flush]);
+  useEffect(() => () => flushRef.current(), []);
 
+  // Discards the local draft in favour of what the server holds.
   const reloadRemote = useCallback(async () => {
     pendingRef.current = null;
     const stored = await api.openDocument(documentId);
     acceptStored(stored);
+    draftRef.current = stored.content;
     setDraft(stored.content);
     setSaveState("saved");
   }, [acceptStored, documentId]);
 
+  // Keeps the local text and replays it on top of the newer server revision,
+  // which becomes a further revision rather than erasing the other one.
   const keepLocal = useCallback(async () => {
     const stored = await api.openDocument(documentId);
     revisionRef.current = stored.revision;
     queryClient.setQueryData(["document", documentId], stored);
-    if (draft) {
-      pendingRef.current = draft;
+    const local = draftRef.current;
+    if (local) {
+      pendingRef.current = local;
       flush();
     }
-  }, [documentId, draft, flush, queryClient]);
+  }, [documentId, flush, queryClient]);
 
   return useMemo(
     () => ({

@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Status:** concluído. As dez tarefas foram entregues; as pendências seguintes vivem em [`TODO.md`](../../TODO.md).
+
 **Goal:** Entregar um Etpeto executável em Docker com interface React visível, API Go documentada, PostgreSQL, renderer Typst interno e autenticação local mínima.
 
 **Architecture:** O corte mantém um monólito modular em Go para API e um segundo binário Go para o renderer, ambos no mesmo módulo. A web React acessa a API pelo mesmo domínio; Caddy serve os arquivos e encaminha `/api/*`. PostgreSQL persiste identidade e sessões, enquanto o renderer aceita somente um contrato JSON fechado.
@@ -66,7 +68,7 @@ docs/runbooks/development.md      execução e diagnóstico local
 - Consumes: product decisions from `docs/specs/2026-08-06-etpeto-design.md`.
 - Produces: `make help`, `make fmt`, `make test`, `make build`, `make check`, `make up`, and `make down` for every later task.
 
-- [ ] **Step 1: Write the repository contract check**
+- [x] **Step 1: Write the repository contract check**
 
 Create `scripts/check-repository.sh`:
 
@@ -82,12 +84,12 @@ grep -q '^help:' Makefile
 grep -q 'AGPL-3.0' LICENSE
 ```
 
-- [ ] **Step 2: Run the check and verify it fails**
+- [x] **Step 2: Run the check and verify it fails**
 
 Run: `sh scripts/check-repository.sh`  
 Expected: FAIL on the first missing root file.
 
-- [ ] **Step 3: Add the minimal repository files**
+- [x] **Step 3: Add the minimal repository files**
 
 `AGENTS.md` must point agents to the approved spec and plan, require TDD, forbid secrets and require updating docs when contracts change. `RTK.md` must require `rg` for search and `rtk git` for concise Git output when available. The Makefile must expose:
 
@@ -113,12 +115,12 @@ down: ## Stop the reference stack
 
 Copy the unmodified GNU AGPL v3 license text into `LICENSE`; use `AGPL-3.0-only` in metadata and documentation.
 
-- [ ] **Step 4: Run the repository check**
+- [x] **Step 4: Run the repository check**
 
 Run: `sh scripts/check-repository.sh && make help`  
 Expected: PASS and a list of canonical commands.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add AGENTS.md RTK.md Makefile .env.example .gitignore LICENSE scripts/check-repository.sh
@@ -139,7 +141,7 @@ git commit -m "chore: establish repository contract"
 - Consumes: environment variable `ETPETO_API_ADDR`, default `:8080`.
 - Produces: `api.NewRouter(readiness ReadinessChecker) http.Handler`; `GET /livez`, `GET /readyz`, `GET /api/v1/service-info`, and OpenAPI at `/openapi.json`.
 
-- [ ] **Step 1: Write failing health tests**
+- [x] **Step 1: Write failing health tests**
 
 ```go
 func TestLiveness(t *testing.T) {
@@ -163,12 +165,12 @@ func TestReadinessFailsWhenDependencyIsUnavailable(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests and verify the red state**
+- [x] **Step 2: Run tests and verify the red state**
 
 Run: `go test ./internal/api -run 'Test(Liveness|Readiness)'`  
 Expected: FAIL because `NewRouter` and `ReadinessChecker` do not exist.
 
-- [ ] **Step 3: Implement the Huma router**
+- [x] **Step 3: Implement the Huma router**
 
 Define the exact interface:
 
@@ -195,19 +197,19 @@ type ServiceInfoBody struct {
 
 Readiness errors must return `503` without exposing the dependency error text. `main.go` must configure timeouts and perform graceful shutdown on `SIGINT` or `SIGTERM`.
 
-- [ ] **Step 4: Run API tests and race detector**
+- [x] **Step 4: Run API tests and race detector**
 
 Run: `go test -race ./internal/api`  
 Expected: PASS.
 
-- [ ] **Step 5: Verify generated OpenAPI**
+- [x] **Step 5: Verify generated OpenAPI**
 
 Add a test that requests `/openapi.json` and asserts the document contains `/api/v1/service-info`, `/livez` and `/readyz`.
 
 Run: `go test ./internal/api -run TestOpenAPI`  
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add go.mod go.sum cmd/api internal/api
@@ -229,18 +231,18 @@ git commit -m "feat(api): add health and service contract"
 - Consumes: `ETPETO_DATABASE_URL` and `context.Context`.
 - Produces: `database.Open(ctx, url) (*pgxpool.Pool, error)` and `database.Checker{Pinger Pinger}.Ready(ctx) error` satisfying `api.ReadinessChecker`; `*pgxpool.Pool` satisfies `Pinger`.
 
-- [ ] **Step 1: Write the failing readiness unit test**
+- [x] **Step 1: Write the failing readiness unit test**
 
 Define a private `pinger` interface with `Ping(context.Context) error`, inject a stub and assert that `Checker.Ready` returns its error unchanged.
 
 Run: `go test ./internal/platform/database`  
 Expected: FAIL because `Checker` does not exist.
 
-- [ ] **Step 2: Implement connection and readiness**
+- [x] **Step 2: Implement connection and readiness**
 
 `Open` must reject an empty URL, use `pgxpool.New`, ping during startup and close the pool on startup failure. `Checker.Ready` delegates to `Ping` with the request context.
 
-- [ ] **Step 3: Add the first reversible migration**
+- [x] **Step 3: Add the first reversible migration**
 
 The Goose migration must create UUID-capable tables `organizations`, `users`, `identities`, `memberships` and `sessions` with:
 
@@ -252,21 +254,21 @@ The Goose migration must create UUID-capable tables `organizations`, `users`, `i
 
 The down migration drops these tables in reverse dependency order.
 
-- [ ] **Step 4: Generate sqlc and run integration test**
+- [x] **Step 4: Generate sqlc and run integration test**
 
 Add a Testcontainers test which starts PostgreSQL 17, runs Goose up, inserts one organization and user through generated queries, then proves duplicate normalized email is rejected.
 
 Run: `go test -tags=integration ./internal/platform/database`  
 Expected: PASS when Docker is available.
 
-- [ ] **Step 5: Wire database readiness into `cmd/api`**
+- [x] **Step 5: Wire database readiness into `cmd/api`**
 
 Startup must fail with a safe error when `ETPETO_DATABASE_URL` is absent or unavailable. Shutdown closes the HTTP server before the pool.
 
 Run: `go test -race ./...`  
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/platform/database db sqlc.yaml goose.yaml cmd/api go.mod go.sum
@@ -289,7 +291,7 @@ git commit -m "feat(database): add PostgreSQL foundation"
 - Consumes: `rendercontract.Request` JSON and environment `ETPETO_RENDERER_ADDR`, default `:8081`.
 - Produces: `renderer.BuildSource(req rendercontract.Request) (string, error)`, `renderer.Runner.Render(ctx, source) ([]byte, error)`, `POST /internal/render`, and `GET /livez`.
 
-- [ ] **Step 1: Define the contract through failing tests**
+- [x] **Step 1: Define the contract through failing tests**
 
 ```go
 func TestBuildSourceEscapesTypstSyntaxAndKeepsURLsAsText(t *testing.T) {
@@ -330,16 +332,16 @@ type Section struct {
 }
 ```
 
-- [ ] **Step 2: Run the contract tests and verify failure**
+- [x] **Step 2: Run the contract tests and verify failure**
 
 Run: `go test ./internal/rendercontract`  
 Expected: FAIL because the request types and validation are absent.
 
-- [ ] **Step 3: Implement bounded validation and escaping**
+- [x] **Step 3: Implement bounded validation and escaping**
 
 Accept schema version `1`, 1–100 sections, titles up to 300 Unicode code points and paragraphs up to 20,000 code points. Text is data and must be escaped by `BuildSource`; ordinary `https://` text is allowed and rendered literally, while no field is interpreted as a fetch instruction. Assert that generated source neutralizes `#`, `[`, `]`, `\\` and quotes according to Typst string/content rules.
 
-- [ ] **Step 4: Test the renderer service with a fake runner**
+- [x] **Step 4: Test the renderer service with a fake runner**
 
 ```go
 type Runner interface {
@@ -352,11 +354,11 @@ type Runner interface {
 Run: `go test -race ./internal/renderer`  
 Expected: PASS.
 
-- [ ] **Step 5: Implement the bounded Typst CLI runner**
+- [x] **Step 5: Implement the bounded Typst CLI runner**
 
 Implement this as `CLIRunner`. Use `exec.CommandContext(ctx, "typst", "compile", "--format", "pdf", inputPath, outputPath)`. Create files only inside an injected temporary directory, set a 15-second parent timeout, cap concurrent renders with a buffered semaphore and read the resulting PDF only after a zero exit status.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/rendercontract internal/renderer cmd/renderer
@@ -377,14 +379,14 @@ git commit -m "feat(renderer): add closed Typst render contract"
 - Consumes: `ETPETO_RENDERER_URL`, `rendercontract.Request` and renderer `POST /internal/render`.
 - Produces: `renderclient.Client.Render(ctx, request) (PDF, error)` and public `POST /api/v1/previews` returning `application/pdf` with `ETag`.
 
-- [ ] **Step 1: Write a failing renderer client test**
+- [x] **Step 1: Write a failing renderer client test**
 
 Use `httptest.Server` to assert the client sends `application/json`, the closed render contract and `X-Etpeto-Renderer-Token`; return a PDF fixture and assert bytes plus ETag are preserved.
 
 Run: `go test ./internal/renderclient`  
 Expected: FAIL because `Client` does not exist.
 
-- [ ] **Step 2: Implement the bounded client**
+- [x] **Step 2: Implement the bounded client**
 
 Define:
 
@@ -405,11 +407,11 @@ func (c Client) Render(ctx context.Context, request rendercontract.Request) (PDF
 
 Reject non-2xx responses, non-PDF content types and bodies above 20 MiB. The HTTP client timeout is 20 seconds. Do not include the renderer response body in returned errors.
 
-- [ ] **Step 3: Write the failing public preview route test**
+- [x] **Step 3: Write the failing public preview route test**
 
 Inject a fake with `Render(context.Context, rendercontract.Request) (renderclient.PDF, error)`. Assert valid requests return PDF and ETag; validation errors return `422`; renderer errors return Problem Details `503`.
 
-- [ ] **Step 4: Register the route and wire configuration**
+- [x] **Step 4: Register the route and wire configuration**
 
 Extend `NewRouter` with a dependencies struct:
 
@@ -424,12 +426,12 @@ func NewRouter(deps Dependencies) http.Handler
 
 `cmd/api` reads renderer URL and token from environment and fails startup when either is empty.
 
-- [ ] **Step 5: Run bridge tests**
+- [x] **Step 5: Run bridge tests**
 
 Run: `go test -race ./internal/renderclient ./internal/api`  
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/renderclient internal/api cmd/api
@@ -458,11 +460,11 @@ git commit -m "feat(api): bridge preview rendering"
 - Consumes: no backend data yet; an in-file typed fixture represents “Aquisição de notebooks”.
 - Produces: accessible Etpeto shell with `Roteiro`, `Editor` and `Prévia oficial`, independently collapsible side panels and mobile mode navigation.
 
-- [ ] **Step 1: Bootstrap only the test runner configuration**
+- [x] **Step 1: Bootstrap only the test runner configuration**
 
 Install React, Vite, TypeScript, Vitest, Testing Library, jsdom, Prettier, `@base-ui/react`, TanStack Query, Zod, React Hook Form and Lexical packages with Bun. Configure Vitest for jsdom and import `@testing-library/jest-dom/vitest` in `vitest.setup.ts`. Package scripts must expose `test` as `vitest run`, `typecheck` as `tsc --noEmit`, `format` as `prettier --write .` and `build` as `tsc -b && vite build`.
 
-- [ ] **Step 2: Write failing workspace behavior tests**
+- [x] **Step 2: Write failing workspace behavior tests**
 
 ```tsx
 it('recolhe o roteiro sem esconder o editor', async () => {
@@ -482,18 +484,18 @@ it('oferece modos exclusivos no viewport móvel', () => {
 });
 ```
 
-- [ ] **Step 3: Run the test and verify the red state**
+- [x] **Step 3: Run the test and verify the red state**
 
 Run: `cd web && bun run test src/features/editor/EditorWorkspace.test.tsx`  
 Expected: FAIL because `EditorWorkspace` does not exist.
 
-- [ ] **Step 4: Build the minimum accessible workspace**
+- [x] **Step 4: Build the minimum accessible workspace**
 
 Use semantic landmarks and Base UI primitives where interaction requires them. Persist desktop collapse state under `etpeto:editor-layout:v1`. Do not persist document content in this task. Use CSS grid for desktop and tabs for compact mode.
 
 Tokens must include surface, text, border, accent orange, success, danger, focus ring, spacing, radius and shadow values. The root must use `isolation: isolate`; `body` uses `position: relative` for Base UI portal behavior.
 
-- [ ] **Step 5: Implement the approved visual content**
+- [x] **Step 5: Implement the approved visual content**
 
 Render real labels from the approved mock:
 
@@ -505,12 +507,12 @@ Render real labels from the approved mock:
 
 The visual must be Cloudflare-airy in spacing and hierarchy without copying its logo or branded palette.
 
-- [ ] **Step 6: Run frontend gates**
+- [x] **Step 6: Run frontend gates**
 
 Run: `cd web && bun run test && bun run typecheck && bun run build`  
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web
@@ -530,31 +532,31 @@ git commit -m "feat(web): add Etpeto editor workspace"
 - Consumes: `documentId`, `elementId`, optional serialized Lexical state and `onChange(state: SerializedEditorState): void`.
 - Produces: `RichTextElement` and `createRecoveryStore(storage: Storage)` with `load`, `save`, and `clearPersistedRevision` methods.
 
-- [ ] **Step 1: Write failing recovery tests**
+- [x] **Step 1: Write failing recovery tests**
 
 Test that keys use `etpeto:recovery:v1:<documentId>`, stale saves cannot clear a newer local revision and invalid JSON is ignored without throwing.
 
 Run: `cd web && bun run test src/features/editor/recovery.test.ts`  
 Expected: FAIL because `createRecoveryStore` is absent.
 
-- [ ] **Step 2: Implement the recovery store**
+- [x] **Step 2: Implement the recovery store**
 
 Persist an envelope containing `schemaVersion`, `documentId`, `serverRevision`, `savedAt` and `content`. `clearPersistedRevision` may delete only when the acknowledged revision is greater than or equal to the stored revision.
 
-- [ ] **Step 3: Write the failing Lexical round-trip test**
+- [x] **Step 3: Write the failing Lexical round-trip test**
 
 Mount the editor with a paragraph containing “Descreva as condições indispensáveis”, change the text, and assert `onChange` receives a Lexical JSON state whose root contains the new text.
 
-- [ ] **Step 4: Implement the minimal Lexical editor**
+- [x] **Step 4: Implement the minimal Lexical editor**
 
 Enable paragraphs, headings, lists, bold, italic, underline and links. Do not enable arbitrary HTML import, tables, custom domain blocks or collaboration plugins. Toolbar buttons require accessible names and pressed state.
 
-- [ ] **Step 5: Run frontend tests**
+- [x] **Step 5: Run frontend tests**
 
 Run: `cd web && bun run test && bun run typecheck`  
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/features/editor
@@ -579,36 +581,36 @@ git commit -m "feat(editor): add rich text and local recovery"
 - Consumes: normalized email, password and PostgreSQL repositories generated by sqlc.
 - Produces: `POST /api/v1/auth/local/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/session`; cookie `__Host-etpeto_session` with `Secure`, `HttpOnly`, `SameSite=Lax` and `Path=/`.
 
-- [ ] **Step 1: Write failing password tests**
+- [x] **Step 1: Write failing password tests**
 
 Test Argon2id hash/verify success, wrong-password failure, malformed-hash failure and a maximum accepted password byte length of 1024.
 
-- [ ] **Step 2: Implement password hashing**
+- [x] **Step 2: Implement password hashing**
 
 Use `golang.org/x/crypto/argon2`, a 16-byte random salt, 32-byte key and parameters stored in the encoded hash. Production defaults must meet the documented project floor; tests inject lower parameters for speed.
 
-- [ ] **Step 3: Write failing session tests**
+- [x] **Step 3: Write failing session tests**
 
 Test 32 random bytes encoded with base64url, SHA-256 token hashing, absolute expiration, revocation and constant-time hash comparison.
 
-- [ ] **Step 4: Implement service and repositories**
+- [x] **Step 4: Implement service and repositories**
 
 Normalize email with trim plus lowercase, return one generic credential error, and create the session only after successful password verification. Persist only the token hash. Never log email plus authentication result at info level.
 
-- [ ] **Step 5: Add API contract tests**
+- [x] **Step 5: Add API contract tests**
 
 Assert successful login sends HttpOnly, SameSite Lax, Path `/` cookie; invalid login returns identical `401` body for missing user and wrong password; logout revokes the current session and expires the cookie.
 
-- [ ] **Step 6: Add the login page test and implementation**
+- [x] **Step 6: Add the login page test and implementation**
 
 The page must have labeled email/password fields, submit on Enter, announce server errors, disable duplicate submission and navigate to `/documentos` after session confirmation.
 
-- [ ] **Step 7: Run auth gates**
+- [x] **Step 7: Run auth gates**
 
 Run: `go test -race ./internal/auth ./internal/api && cd web && bun run test src/features/auth`  
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/auth internal/api db/queries web/src/features/auth web/src/app
@@ -630,7 +632,7 @@ git commit -m "feat(auth): add local session login"
 - Consumes: `.env` based on `.env.example`.
 - Produces: public `http://localhost:8080`, same-origin `/api/*`, internal `api:8080`, `renderer:8081`, `postgres:5432` and one-shot `migrate`.
 
-- [ ] **Step 1: Write the failing smoke script**
+- [x] **Step 1: Write the failing smoke script**
 
 ```sh
 #!/bin/sh
@@ -643,25 +645,25 @@ curl --fail --silent "$base_url/" | grep -q '<title>Etpeto</title>'
 Run: `sh scripts/smoke-compose.sh`  
 Expected: FAIL because the stack is not running.
 
-- [ ] **Step 2: Create non-root multi-stage images**
+- [x] **Step 2: Create non-root multi-stage images**
 
 The API and renderer final images contain only the binary, CA certificates and an unprivileged user. The renderer additionally contains a pinned Typst binary and writable `/tmp/etpeto` tmpfs only. The web image builds with Bun, then copies `dist` into Caddy.
 
-- [ ] **Step 3: Define Compose ordering and networks**
+- [x] **Step 3: Define Compose ordering and networks**
 
 Create `edge`, `data` and `render` networks. `migrate` depends on healthy PostgreSQL; API depends on successful migration; web depends on API; renderer is attached only to the `render` network and has no published port. Add healthchecks without leaking credentials.
 
-- [ ] **Step 4: Run the stack and smoke contract**
+- [x] **Step 4: Run the stack and smoke contract**
 
 Run: `docker compose up --build -d && sh scripts/smoke-compose.sh`  
 Expected: PASS.
 
-- [ ] **Step 5: Inspect isolation**
+- [x] **Step 5: Inspect isolation**
 
 Run: `docker compose ps` and `docker compose config`  
 Expected: only `web` publishes `8080`; renderer has no database environment variable.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add compose.yaml deploy scripts/smoke-compose.sh .env.example
@@ -688,22 +690,22 @@ git commit -m "feat(deploy): add isolated Docker stack"
 - Consumes: canonical commands and working Compose stack from prior tasks.
 - Produces: reproducible onboarding and a PR gate invoking `make check` plus integration smoke.
 
-- [ ] **Step 1: Add a documentation contract check**
+- [x] **Step 1: Add a documentation contract check**
 
 Extend `scripts/check-repository.sh` to require every public-community file above and verify README contains quick-start, architecture, security reporting and license links.
 
 Run: `sh scripts/check-repository.sh`  
 Expected: FAIL listing the absent public files.
 
-- [ ] **Step 2: Write concise public documentation**
+- [x] **Step 2: Write concise public documentation**
 
 README must explain the ETP problem, show the approved editor direction, run `cp .env.example .env && make up`, identify `http://localhost:8080`, and explicitly label the repository as pre-`v0.1`. SECURITY must direct private vulnerability reports to GitHub private vulnerability reporting, not public issues. CONTRIBUTING must require DCO sign-off and tests.
 
-- [ ] **Step 3: Add least-privilege CI**
+- [x] **Step 3: Add least-privilege CI**
 
 CI triggers on pull requests and pushes to `main`, uses `permissions: contents: read`, pins actions by full commit SHA, caches Go and Bun dependencies, runs unit gates first and Compose smoke second. Fork PRs receive no secrets.
 
-- [ ] **Step 4: Run all local evidence**
+- [x] **Step 4: Run all local evidence**
 
 Run: `make check`  
 Expected: PASS.
@@ -714,7 +716,7 @@ Expected: PASS.
 Run: `docker compose down -v`  
 Expected: stack stops and test-only volumes are removed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .github README.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md GOVERNANCE.md SUPPORT.md docs scripts/check-repository.sh

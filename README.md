@@ -8,13 +8,20 @@ O projeto nasce de um problema cotidiano do serviço público: o conteúdo do ET
 
 ## O que já existe
 
-- oficina React responsiva com navegação e prévia recolhíveis;
+A jornada principal funciona de ponta a ponta: entrar, criar um ETP, editar, salvar, gerar o PDF oficial e exportar.
+
+- oficina React responsiva com roteiro, editor e prévia recolhíveis;
 - texto rico com Lexical e recuperação local do rascunho;
+- documentos persistidos com revisão a cada salvamento e concorrência otimista;
+- prévia e exportação a partir da revisão salva, pelo mesmo renderer Typst;
 - API Go documentada por OpenAPI;
-- autenticação local com senha Argon2id e sessão opaca;
+- autenticação local com senha Argon2id, sessão opaca e CSRF vinculado à sessão;
 - PostgreSQL com migrations versionadas;
 - renderer Typst isolado, alimentado apenas por JSON validado;
 - stack Docker com somente o gateway web exposto.
+
+O roteiro do ETP ainda é fixo, e pesquisa de preços, mapa de riscos e finalização
+não existem. As pendências estão em [TODO.md](TODO.md).
 
 OIDC/Keycloak está previsto na arquitetura, mas ainda não faz parte do walking skeleton. Quando implementado, o provedor externo terminará na mesma sessão local opaca; tokens do Keycloak não serão entregues ao React.
 
@@ -25,9 +32,15 @@ Requer Docker com Compose v2. No macOS, o fluxo é testado com Colima.
 ```sh
 cp .env.example .env
 make up
+make bootstrap
 ```
 
-Abra [http://localhost:8080](http://localhost:8080). Para encerrar:
+`make bootstrap` cria a primeira administração e pede a senha na entrada padrão,
+para que ela não fique em arquivos nem no histórico do shell. Ajuste
+`ETPETO_ADMIN_EMAIL` e `ETPETO_ADMIN_DISPLAY_NAME` no `.env` antes de executá-lo.
+
+Abra [http://localhost:8080](http://localhost:8080) e entre com esse endereço.
+Para encerrar:
 
 ```sh
 make down

@@ -1,70 +1,73 @@
 # Pendências do Etpeto
 
-Etpeto está em fase pré-`v0.1`. A fundação técnica funciona, mas a interface atual ainda é uma demonstração parcialmente interativa e **não deve ser apresentada como um produto utilizável**.
+Etpeto está em fase pré-`v0.1`. A jornada principal já funciona de ponta a ponta — entrar, criar um ETP, editar, salvar, gerar o PDF oficial e exportar —, mas o domínio do ETP ainda é mínimo e **a aplicação não deve ser apresentada como pronta para produção**.
 
 Estado confirmado da interface:
 
-- o texto rico e a preferência dos painéis são recuperados apenas pelo `localStorage` do navegador;
-- título, roteiro, progresso, pesquisa de preços e prévia exibem dados demonstrativos;
-- o indicador `Salvo agora`, `Atualizar`, `Finalizar` e `Exportar PDF` ainda não formam um fluxo funcional;
-- a API gera PDF com Typst, mas o editor ainda não chama esse endpoint;
-- a autenticação local possui API e sessões, mas falta criar o primeiro usuário e proteger as rotas;
-- `POST /api/v1/previews` aceita qualquer requisição, sem sessão e sem limite de tentativas;
-- não existe proteção CSRF, embora a sessão por cookie já esteja em uso;
-- o frontend não tem roteamento, estado remoto nem cliente gerado a partir do OpenAPI;
-- as suítes com a tag `integration` estão escritas mas não são executadas por nenhum comando;
+- o editor carrega o documento persistido, navega pelas seções reais do roteiro e salva com concorrência otimista;
+- os estados de salvamento são verdadeiros, e o conflito oferece escolha explícita entre recarregar o servidor e manter o texto local;
+- a prévia chama o renderer e mostra o PDF devolvido, avisando quando está atrás da revisão atual;
+- a exportação entrega exatamente o arquivo renderizado, sem gerar um segundo PDF;
+- o roteiro ainda é fixo no código: não há roteiros configuráveis por organização;
+- pesquisa de preços, mapa de riscos e tabelas ainda não existem como elementos;
+- `Finalizar` ainda não existe: não há revisão imutável nem emissão;
+- o cliente HTTP valida respostas com Zod, mas ainda é escrito à mão, não gerado do OpenAPI;
 - OIDC/Keycloak ainda não foi implementado.
 
 Os itens abaixo são critérios de conclusão, não estimativas ou promessa de ordem entre itens do mesmo grupo. Toda mudança de comportamento deve seguir TDD e preservar os limites descritos em [docs/architecture/foundation.md](docs/architecture/foundation.md).
 
 ## P0 — MVP utilizável
 
-- [ ] **Provisionar a primeira administração local com segurança.**
+- [x] **Provisionar a primeira administração local com segurança.**
   - Disponibilizar comando explícito e idempotente para criar organização, usuário, identidade local e vínculo administrativo.
   - Ler a senha sem expô-la em argumentos, logs, histórico do shell ou arquivos versionados.
   - Recusar uma segunda inicialização incompatível e documentar recuperação de acesso.
 
-- [ ] **Fechar o fluxo de autenticação local.**
-  - Carregar a sessão ao abrir a aplicação, proteger rotas privadas e redirecionar corretamente para `/login`.
+- [x] **Fechar o fluxo de autenticação local.**
+  - Carregar a sessão ao abrir a aplicação, proteger rotas privadas e redirecionar para `/entrar`.
   - Exibir usuário autenticado, permitir logout e tratar sessão expirada.
-  - Cobrir login, credenciais inválidas, logout, expiração e acesso sem sessão por testes de integração.
+  - Login, credenciais inválidas, logout e acesso sem sessão estão cobertos por testes da API e pela jornada em `scripts/smoke-journey.sh`; expiração ainda só tem cobertura unitária.
 
-- [ ] **Completar o contrato de sessão com CSRF antes de escrever novas rotas mutáveis.**
+- [x] **Completar o contrato de sessão com CSRF antes de escrever novas rotas mutáveis.**
   - Emitir um token CSRF vinculado à sessão, entregue fora do cookie e exigido em header próprio.
   - Recusar toda operação mutável autenticada sem token válido, comparando em tempo constante.
   - Entrar agora, e não no endurecimento final: cada rota mutável escrita antes desta decisão terá de ser reescrita junto de seus testes.
 
-- [ ] **Exigir sessão nas rotas que consomem o renderer.**
-  - `POST /api/v1/previews` é hoje o único caminho de entrada para o Typst e aceita requisições anônimas.
-  - Autenticar a rota, limitar tentativas por sessão e manter o corpo restrito ao contrato versionado.
-  - Cobrir acesso anônimo, sessão expirada e excesso de requisições por testes.
+- [x] **Exigir sessão nas rotas que consomem o renderer.**
+  - `POST /api/v1/previews` foi removida: renderizava conteúdo arbitrário do cliente e aceitava requisições anônimas.
+  - A prévia agora parte da revisão persistida em `POST /api/v1/documents/{id}/preview`, com sessão, CSRF e escopo de organização.
+  - Acesso anônimo e ausência de CSRF estão cobertos por testes e pelo smoke da stack.
 
-- [ ] **Fixar os contratos do frontend antes de construir telas.**
-  - Gerar cliente TypeScript e schemas Zod a partir do OpenAPI, com verificação de divergência na CI.
-  - Adotar roteamento real no lugar da comparação manual de `window.location.pathname`.
-  - Colocar todo estado remoto no TanStack Query, já instalado e ainda não utilizado.
+- [ ] **Limitar tentativas de login e de renderização.**
+  - Nenhuma rota tem rate limiting hoje; o renderer é o recurso mais caro da instalação.
+  - Definir limite por sessão e por origem, com resposta previsível e sem revelar existência de conta.
+  - Cobrir o excesso de requisições por testes.
 
-- [ ] **Persistir documentos no PostgreSQL.**
+- [ ] **Gerar o cliente do frontend a partir do OpenAPI.**
+  - Roteamento real e TanStack Query já estão em uso; o cliente em `web/src/shared/api/client.ts` valida com Zod, mas é escrito à mão.
+  - Gerar cliente e schemas do contrato e verificar divergência na CI, para que uma mudança de API quebre o build e não a produção.
+
+- [x] **Persistir documentos no PostgreSQL.**
   - Criar migrations e consultas tipadas para documento, revisão, seções e conteúdo estruturado versionado.
   - Implementar APIs autenticadas para listar, criar, abrir e atualizar um ETP.
   - Isolar dados por organização e impedir leitura ou alteração cruzada.
 
-- [ ] **Transformar o editor demonstrativo em editor de um documento real.**
+- [x] **Transformar o editor demonstrativo em editor de um documento real.**
   - Remover título, identificador, roteiro, progresso e conteúdo fixos do componente React.
   - Carregar o documento pela API e navegar entre seções reais.
   - Exibir estados de carregamento, vazio, erro, conflito e falta de permissão.
 
-- [ ] **Implementar salvamento confiável.**
+- [x] **Implementar salvamento confiável.**
   - Enviar alterações ao backend com revisão para concorrência otimista.
   - Mostrar estados reais: alterado, salvando, salvo, conflito e falha.
   - Conciliar a recuperação local com a última revisão do servidor sem sobrescrever conteúdo silenciosamente.
 
-- [ ] **Exibir a prévia Typst verdadeira.**
+- [x] **Exibir a prévia Typst verdadeira.**
   - Converter o documento persistido para o contrato JSON versionado do renderer.
-  - Fazer `Atualizar` chamar `/api/v1/previews` e mostrar o PDF retornado, com loading e erro recuperável.
-  - Revogar URLs temporárias do navegador e indicar quando a prévia estiver desatualizada.
+  - `Atualizar` chama `/api/v1/documents/{id}/preview` e mostra o PDF retornado, com carregamento e erro recuperável.
+  - As URLs temporárias são revogadas e a prévia avisa quando está atrás da revisão atual.
 
-- [ ] **Exportar o PDF.**
+- [x] **Exportar o PDF.**
   - Habilitar o botão somente quando existir uma renderização válida.
   - Baixar um arquivo com nome seguro e previsível, preservando o PDF gerado pelo Typst.
   - Cobrir resposta inválida, indisponibilidade do renderer e nova tentativa.
@@ -74,14 +77,19 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
   - Validar campos obrigatórios antes de finalizar e informar pendências por seção.
   - Gerar o PDF a partir da mesma revisão marcada como final.
 
-- [ ] **Executar as suítes de integração já escritas.**
+- [x] **Executar as suítes de integração já escritas.**
   - `migration_integration_test.go` e `runner_integration_test.go` exigem a tag `integration` e não são chamados pelo `Makefile` nem pela CI.
   - Expor um comando canônico e um job dedicado, com Docker disponível e Typst real.
   - Falhar a CI quando a suíte de integração quebrar, e não apenas a unitária.
 
-- [ ] **Cobrir a jornada principal de ponta a ponta.**
-  - Provisionar usuário, entrar, criar ETP, editar, salvar, atualizar prévia, exportar e sair.
-  - Executar a jornada contra a stack Docker na CI, sem credenciais reais ou dados pessoais.
+- [x] **Cobrir a jornada principal de ponta a ponta pela API.**
+  - `scripts/smoke-journey.sh` provisiona, entra, cria, salva, comprova o 409 do salvamento obsoleto, renderiza o PDF e sai.
+  - A CI executa a jornada contra a stack Docker com banco limpo, sem credenciais reais.
+
+- [ ] **Cobrir a jornada principal pelo navegador.**
+  - A jornada atual usa apenas a API; nada garante que a interface a percorra de fato.
+  - Adicionar Playwright para o fluxo crítico no desktop e em viewport móvel.
+  - Incluir digitação no Lexical, autosave por debounce, prévia e exportação.
 
 ## P1 — Domínio do ETP
 
@@ -114,9 +122,9 @@ Os itens abaixo são critérios de conclusão, não estimativas ou promessa de o
   - Permitir comparar revisões e restaurar conteúdo sem apagar o histórico.
 
 - [ ] **Elevar progressivamente os pisos de cobertura até os alvos aprovados.**
-  - Os pisos atuais são 45% no Go e 65/65/60/70 no frontend; a especificação define 90% em domínio e aplicação, 80% no backend, 85/80 no frontend e 90% de patch.
+  - Os pisos atuais são 55% no Go, já sem código gerado e sem os processos de entrada, e 75/72/68/78 no frontend; a especificação define 90% em domínio e aplicação, 80% no backend, 85/80 no frontend e 90% de patch.
+  - O que mais puxa o número para baixo são os repositórios PostgreSQL, hoje exercitados apenas pela suíte de integração e pela jornada.
   - Subir o piso a cada corte vertical concluído, sem permitir regressão.
-  - Manter fora do percentual apenas código gerado, bootstrap, configuração e migrations, validando-os por contrato ou smoke.
 
 - [ ] **Administrar usuários, vínculos, papéis e templates.**
   - Disponibilizar telas e APIs somente para os papéis autorizados.

@@ -59,6 +59,10 @@ Bun reduz o conjunto de ferramentas do frontend ao instalar, testar e executar s
 
 O mecanismo entregue é local: senha protegida por Argon2id, token de sessão aleatório e somente o hash SHA-256 do token persistido. O navegador recebe cookie `__Host-etpeto_session` com `Secure`, `HttpOnly`, `SameSite=Lax` e `Path=/`.
 
+Cada sessão carrega um segundo token, o CSRF, exigido em `X-Etpeto-Csrf` por toda rota mutável autenticada. Ele é publicado em `__Host-etpeto_csrf`, um cookie deliberadamente legível por script: o que o protege não é sigilo, e sim a política de mesma origem, que impede uma página externa de lê-lo e reproduzi-lo no header. Somente o hash chega ao banco, e a comparação é feita em tempo constante. Uma sessão anterior à introdução do CSRF é revogada pela migração, em vez de permanecer válida e falhar em toda escrita.
+
+O primeiro administrador é criado por um comando dedicado, fora da API. Ele é idempotente para o mesmo endereço e recusa acrescentar administrador a uma instalação já inicializada, de modo que reexecutá-lo nunca amplie acesso. A senha é lida da entrada padrão para não passar por argumentos de processo nem pelo histórico do shell.
+
 OIDC/Keycloak é uma integração planejada. O fluxo futuro será Authorization Code com PKCE no backend. Depois de validar o provedor, a API associa ou cria a identidade externa e emite a mesma sessão local. Assim, o frontend não armazena access token, e autorização da aplicação não fica acoplada à vida do token do provedor. Uma organização escolherá os métodos permitidos; habilitar login local como fallback será decisão administrativa explícita.
 
 ## Desenvolvimento orientado a agentes
@@ -74,8 +78,18 @@ O repositório trata documentação e testes como contexto executável:
 
 Agentes aceleram implementação, mas não substituem revisão de ameaça, validação visual, decisão de produto ou responsabilidade do mantenedor.
 
+## Documentos e revisões
+
+Um documento pertence a uma organização e tem uma revisão corrente. Cada salvamento acrescenta uma linha em `document_revisions` com o JSON canônico, sua versão de schema e o hash do conteúdo; nada é atualizado no lugar, de modo que o histórico já existe antes de haver tela para ele.
+
+A escrita informa a revisão que o autor editou. O `UPDATE` só avança quando a revisão corrente ainda é aquela, e a ausência de linha afetada é traduzida em documento inexistente ou conflito, nunca em sobrescrita. A interface expõe o conflito e pede uma decisão explícita em vez de escolher por quem edita.
+
+A prévia parte sempre da revisão persistida: a API normaliza o documento para o contrato fechado do renderer, o que torna impossível o PDF exibir conteúdo que nunca foi salvo. A normalização percorre o estado do Lexical e extrai um parágrafo por bloco; um estado corrompido produz zero parágrafos em vez de impedir a renderização das demais seções.
+
 ## Limites do corte atual
 
-Ainda não estão implementados: persistência de ETPs, roteiros configuráveis, elementos especializados, exportação final autenticada, OIDC/Keycloak, controle de acesso por organização, trilha de auditoria e colaboração simultânea. “Colaboração” neste projeto significa inicialmente contribuição ao repositório público, não coedição em tempo real.
+Ainda não estão implementados: roteiros configuráveis por organização, elementos especializados como pesquisa de preços e mapa de riscos, finalização com revisão imutável e emissão, OIDC/Keycloak, papéis aplicados aos casos de uso, trilha de auditoria e colaboração simultânea. “Colaboração” neste projeto significa inicialmente contribuição ao repositório público, não coedição em tempo real.
+
+O roteiro do ETP está fixo em `internal/document`, com chaves de seção estáveis, justamente para que roteiros versionados possam substituí-lo sem alterar o modelo do documento.
 
 Mudanças nesta arquitetura exigem atualização deste documento ou uma ADR em `docs/adr/`.
