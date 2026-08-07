@@ -1,8 +1,16 @@
 import react from "@vitejs/plugin-react";
+import Icons from "unplugin-icons/vite";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Icons are compiled into the bundle as inline SVG. The Iconify runtime API
+    // is deliberately not used: it would fetch from an external host, which the
+    // gateway's content security policy blocks and an institutional install
+    // cannot depend on.
+    Icons({ compiler: "jsx", jsx: "react", scale: 1 }),
+  ],
   server: {
     port: 5173,
     proxy: {

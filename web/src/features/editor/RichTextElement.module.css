@@ -22,6 +22,19 @@
   margin-left: -6px;
 }
 
+/* One size for every icon in the toolbar, set here rather than per import, so
+   the row keeps a single optical rhythm. */
+.tool svg {
+  width: 15px;
+  height: 15px;
+}
+
+.caret {
+  width: 12px;
+  height: 12px;
+  opacity: 0.6;
+}
+
 .tool {
   display: inline-flex;
   min-width: 26px;
@@ -198,7 +211,7 @@
    second document inside the document, and it is what made the editor read as a
    form rather than a manuscript. */
 .contentEditable {
-  min-height: 120px;
+  min-height: 3lh;
   padding: 0;
   color: var(--color-ink);
   font-family: var(--font-document);

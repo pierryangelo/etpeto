@@ -3,6 +3,18 @@ import { Toolbar } from "@base-ui/react/toolbar";
 import { Tooltip } from "@base-ui/react/tooltip";
 import type { ReactNode } from "react";
 
+// Compiled into the bundle at build time; no request ever leaves the page.
+import IconBold from "~icons/lucide/bold";
+import IconChevronDown from "~icons/lucide/chevron-down";
+import IconItalic from "~icons/lucide/italic";
+import IconLink from "~icons/lucide/link";
+import IconList from "~icons/lucide/list";
+import IconListOrdered from "~icons/lucide/list-ordered";
+import IconRedo from "~icons/lucide/redo-2";
+import IconUnderline from "~icons/lucide/underline";
+import IconUndo from "~icons/lucide/undo-2";
+import IconUnlink from "~icons/lucide/unlink";
+
 import styles from "./RichTextElement.module.css";
 
 export type BlockStyle = "paragraph" | "heading" | "quote";
@@ -61,7 +73,7 @@ export function EditorToolbar({
           disabled={!canUndo}
           onClick={actions.undo}
         >
-          ↶
+          <IconUndo />
         </Tool>
         <Tool
           label="Refazer"
@@ -69,7 +81,7 @@ export function EditorToolbar({
           disabled={!canRedo}
           onClick={actions.redo}
         >
-          ↷
+          <IconRedo />
         </Tool>
 
         <Toolbar.Separator className={styles.separator} />
@@ -84,7 +96,7 @@ export function EditorToolbar({
           pressed={format.bold}
           onClick={actions.toggleBold}
         >
-          <b>B</b>
+          <IconBold />
         </Tool>
         <Tool
           label="Itálico"
@@ -92,7 +104,7 @@ export function EditorToolbar({
           pressed={format.italic}
           onClick={actions.toggleItalic}
         >
-          <i>I</i>
+          <IconItalic />
         </Tool>
         <Tool
           label="Sublinhado"
@@ -100,7 +112,7 @@ export function EditorToolbar({
           pressed={format.underline}
           onClick={actions.toggleUnderline}
         >
-          <span className={styles.underlineGlyph}>U</span>
+          <IconUnderline />
         </Tool>
 
         <Toolbar.Separator className={styles.separator} />
@@ -110,14 +122,14 @@ export function EditorToolbar({
           pressed={format.bulletList}
           onClick={actions.toggleBulletList}
         >
-          •—
+          <IconList />
         </Tool>
         <Tool
           label="Lista numerada"
           pressed={format.numberedList}
           onClick={actions.toggleNumberedList}
         >
-          1—
+          <IconListOrdered />
         </Tool>
 
         <Toolbar.Separator className={styles.separator} />
@@ -128,7 +140,7 @@ export function EditorToolbar({
           pressed={format.link}
           onClick={actions.toggleLink}
         >
-          ↗
+          {format.link ? <IconUnlink /> : <IconLink />}
         </Tool>
       </Toolbar.Root>
     </Tooltip.Provider>
@@ -199,7 +211,7 @@ function BlockMenu({
         }
       >
         {blockLabels[current]}
-        <span aria-hidden="true">▾</span>
+        <IconChevronDown className={styles.caret} />
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="start" sideOffset={6}>
