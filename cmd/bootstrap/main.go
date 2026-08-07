@@ -16,6 +16,7 @@ import (
 
 	authdomain "github.com/etpeto/etpeto/internal/auth"
 	"github.com/etpeto/etpeto/internal/platform/database"
+	templatedomain "github.com/etpeto/etpeto/internal/template"
 )
 
 type environment struct {
@@ -78,6 +79,14 @@ func run(env environment) int {
 		return 1
 	case err != nil:
 		slog.Error("provisioning failed", "error", err)
+		return 1
+	}
+
+	// A published script has to exist before anyone can create a document.
+	if err := (templatedomain.PostgresRepository{Pool: pool}).EnsureDefault(
+		ctx, outcome.OrganizationID, outcome.UserID,
+	); err != nil {
+		slog.Error("could not publish the default script", "error", err)
 		return 1
 	}
 

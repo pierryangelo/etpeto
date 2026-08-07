@@ -62,6 +62,50 @@ func (g guard) authorizeMutation(
 	return user, nil
 }
 
+// authorizeRoles authenticates the session, requires the CSRF token and then
+// checks the membership role. The role check lives here, in the use case, and
+// not only in the interface: hiding a button is a courtesy, refusing the
+// request is the control.
+func (g guard) authorizeRoles(
+	ctx context.Context,
+	token string,
+	csrfToken string,
+	roles ...string,
+) (authdomain.AuthenticatedUser, error) {
+	user, err := g.authorizeMutation(ctx, token, csrfToken)
+	if err != nil {
+		return authdomain.AuthenticatedUser{}, err
+	}
+	for _, role := range roles {
+		if user.Role == role {
+			return user, nil
+		}
+	}
+	return authdomain.AuthenticatedUser{}, huma.Error403Forbidden(
+		"Seu papel não permite esta ação",
+	)
+}
+
+// requireRoles is the read-only counterpart: no CSRF, because nothing changes.
+func (g guard) requireRoles(
+	ctx context.Context,
+	token string,
+	roles ...string,
+) (authdomain.AuthenticatedUser, error) {
+	user, err := g.authenticate(ctx, token)
+	if err != nil {
+		return authdomain.AuthenticatedUser{}, err
+	}
+	for _, role := range roles {
+		if user.Role == role {
+			return user, nil
+		}
+	}
+	return authdomain.AuthenticatedUser{}, huma.Error403Forbidden(
+		"Seu papel não permite esta ação",
+	)
+}
+
 func activeSessionCookie(token string, expiresAt time.Time) http.Cookie {
 	return http.Cookie{
 		Name:     sessionCookieName,

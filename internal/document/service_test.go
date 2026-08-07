@@ -8,13 +8,22 @@ import (
 	"time"
 )
 
-func TestServiceCreateStoresTheDefaultOutlineWithItsContentHash(t *testing.T) {
+func TestServiceCreateStoresTheInstantiatedOutlineWithItsContentHash(t *testing.T) {
 	repository := &repositoryStub{}
 	service := Service{Repository: repository}
-
-	stored, err := service.Create(context.Background(), "organization-1", "user-1", " Aquisição de notebooks ")
+	content, err := New("Aquisição de notebooks")
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	stored, err := service.Create(
+		context.Background(), "organization-1", "user-1", "revision-1", content,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repository.created.TemplateRevisionID != "revision-1" {
+		t.Fatalf("document was not bound to its script revision: %#v", repository.created)
 	}
 	if stored.Revision != 1 {
 		t.Fatalf("stored revision = %d", stored.Revision)
@@ -34,11 +43,18 @@ func TestServiceCreateStoresTheDefaultOutlineWithItsContentHash(t *testing.T) {
 	}
 }
 
-func TestServiceCreateRejectsABlankTitleBeforeWriting(t *testing.T) {
+func TestServiceCreateRejectsInvalidContentBeforeWriting(t *testing.T) {
 	repository := &repositoryStub{}
 	service := Service{Repository: repository}
+	content, err := New("Aquisição de notebooks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	content.Sections = nil
 
-	_, err := service.Create(context.Background(), "organization-1", "user-1", "  ")
+	_, err = service.Create(
+		context.Background(), "organization-1", "user-1", "revision-1", content,
+	)
 	if !errors.Is(err, ErrInvalidDocument) {
 		t.Fatalf("Create() error = %v, want ErrInvalidDocument", err)
 	}

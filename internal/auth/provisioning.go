@@ -11,7 +11,10 @@ import (
 // Roles recognised by the installation. Provisioning only ever grants the
 // organization administrator role; everything above it is a future decision.
 const (
+	RoleInstallationAdmin = "installation_admin"
 	RoleOrganizationAdmin = "organization_admin"
+	RoleTemplateManager   = "template_manager"
+	RoleAuthor            = "author"
 )
 
 // minimumProvisionedPasswordLength is a floor for the very first credential of

@@ -206,6 +206,7 @@ func authenticatedTestUser() authdomain.AuthenticatedUser {
 		ID:             "00000000-0000-0000-0000-000000000001",
 		DisplayName:    "Pessoa Autora",
 		OrganizationID: testOrganizationID,
+		Role:           authdomain.RoleOrganizationAdmin,
 		ExpiresAt:      time.Date(2026, 8, 7, 12, 0, 0, 0, time.UTC),
 		CSRFHash:       hash[:],
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/etpeto/etpeto/internal/platform/database"
 	"github.com/etpeto/etpeto/internal/platform/database/dbgen"
 	"github.com/etpeto/etpeto/internal/renderclient"
+	templatedomain "github.com/etpeto/etpeto/internal/template"
 )
 
 const defaultAddress = ":8080"
@@ -94,6 +95,9 @@ func main() {
 			Auth: authentication,
 			Documents: documentdomain.Service{
 				Repository: documentdomain.PostgresRepository{Pool: pool},
+			},
+			Templates: templatedomain.Service{
+				Repository: templatedomain.PostgresRepository{Pool: pool},
 			},
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

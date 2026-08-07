@@ -61,11 +61,16 @@ func (r PostgresRepository) Create(ctx context.Context, document NewDocument) (S
 	defer func() { _ = transaction.Rollback(ctx) }()
 
 	queries := dbgen.New(r.Pool).WithTx(transaction)
+	revisionID, err := optionalUUID(document.TemplateRevisionID)
+	if err != nil {
+		return Stored{}, err
+	}
 	created, err := queries.CreateDocument(ctx, dbgen.CreateDocumentParams{
-		OrganizationID: organizationID,
-		CreatedBy:      authorID,
-		DocumentType:   document.Content.DocumentType,
-		Title:          document.Content.Title,
+		OrganizationID:     organizationID,
+		CreatedBy:          authorID,
+		DocumentType:       document.Content.DocumentType,
+		Title:              document.Content.Title,
+		TemplateRevisionID: revisionID,
 	})
 	if err != nil {
 		return Stored{}, err
@@ -215,6 +220,15 @@ func formatUUID(value pgtype.UUID) string {
 		return ""
 	}
 	return uuid.UUID(value.Bytes).String()
+}
+
+// optionalUUID accepts an empty identifier, for a document created before
+// published scripts existed.
+func optionalUUID(value string) (pgtype.UUID, error) {
+	if value == "" {
+		return pgtype.UUID{}, nil
+	}
+	return parseUUID(value)
 }
 
 func parseUUID(value string) (pgtype.UUID, error) {

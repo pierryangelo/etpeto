@@ -52,7 +52,7 @@ up: ## Start the reference stack
 	@docker compose up --build -d
 
 bootstrap: ## Provision the first administrator (password read from stdin)
-	@docker compose run --rm --no-TTY bootstrap
+	@docker compose run --rm --build --no-TTY bootstrap
 
 smoke: ## Verify the running reference stack
 	@sh scripts/smoke-compose.sh

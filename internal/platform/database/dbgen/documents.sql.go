@@ -54,16 +54,23 @@ func (q *Queries) AdvanceDocumentRevision(ctx context.Context, arg AdvanceDocume
 }
 
 const createDocument = `-- name: CreateDocument :one
-INSERT INTO documents (organization_id, created_by, document_type, title)
-VALUES ($1, $2, $3, $4)
+INSERT INTO documents (
+    organization_id,
+    created_by,
+    document_type,
+    title,
+    template_revision_id
+)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id, title, current_revision, updated_at
 `
 
 type CreateDocumentParams struct {
-	OrganizationID pgtype.UUID `db:"organization_id" json:"organization_id"`
-	CreatedBy      pgtype.UUID `db:"created_by" json:"created_by"`
-	DocumentType   string      `db:"document_type" json:"document_type"`
-	Title          string      `db:"title" json:"title"`
+	OrganizationID     pgtype.UUID `db:"organization_id" json:"organization_id"`
+	CreatedBy          pgtype.UUID `db:"created_by" json:"created_by"`
+	DocumentType       string      `db:"document_type" json:"document_type"`
+	Title              string      `db:"title" json:"title"`
+	TemplateRevisionID pgtype.UUID `db:"template_revision_id" json:"template_revision_id"`
 }
 
 type CreateDocumentRow struct {
@@ -79,6 +86,7 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 		arg.CreatedBy,
 		arg.DocumentType,
 		arg.Title,
+		arg.TemplateRevisionID,
 	)
 	var i CreateDocumentRow
 	err := row.Scan(

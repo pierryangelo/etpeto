@@ -31,8 +31,12 @@ type Stored struct {
 type NewDocument struct {
 	OrganizationID string
 	AuthorID       string
-	Content        Document
-	ContentHash    []byte
+	// TemplateRevisionID binds the document to the script revision it was
+	// created from. It never changes: publishing a new revision leaves existing
+	// documents exactly as they are.
+	TemplateRevisionID string
+	Content            Document
+	ContentHash        []byte
 }
 
 type Revision struct {
@@ -65,14 +69,16 @@ func (s Service) List(ctx context.Context, organizationID string) ([]Summary, er
 	return s.Repository.List(ctx, organizationID)
 }
 
+// Create stores a document already instantiated from a script revision. The
+// caller resolves the revision, so this package stays unaware of templates.
 func (s Service) Create(
 	ctx context.Context,
 	organizationID string,
 	authorID string,
-	title string,
+	templateRevisionID string,
+	content Document,
 ) (Stored, error) {
-	content, err := New(title)
-	if err != nil {
+	if err := content.Validate(); err != nil {
 		return Stored{}, err
 	}
 	hash, err := ContentHash(content)
@@ -80,10 +86,11 @@ func (s Service) Create(
 		return Stored{}, err
 	}
 	return s.Repository.Create(ctx, NewDocument{
-		OrganizationID: organizationID,
-		AuthorID:       authorID,
-		Content:        content,
-		ContentHash:    hash,
+		OrganizationID:     organizationID,
+		AuthorID:           authorID,
+		TemplateRevisionID: templateRevisionID,
+		Content:            content,
+		ContentHash:        hash,
 	})
 }
 

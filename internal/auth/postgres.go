@@ -75,6 +75,7 @@ func (r PostgresRepository) FindActiveSession(
 		ID:             formatUUID(row.ID),
 		DisplayName:    row.DisplayName,
 		OrganizationID: formatUUID(row.OrganizationID),
+		Role:           row.Role,
 		ExpiresAt:      row.ExpiresAt.Time,
 		CSRFHash:       row.CsrfHash,
 	}, nil

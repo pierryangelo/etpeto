@@ -6,8 +6,14 @@ ORDER BY updated_at DESC
 LIMIT 200;
 
 -- name: CreateDocument :one
-INSERT INTO documents (organization_id, created_by, document_type, title)
-VALUES ($1, $2, $3, $4)
+INSERT INTO documents (
+    organization_id,
+    created_by,
+    document_type,
+    title,
+    template_revision_id
+)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id, title, current_revision, updated_at;
 
 -- name: CreateDocumentRevision :one

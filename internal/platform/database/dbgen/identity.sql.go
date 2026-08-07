@@ -185,7 +185,8 @@ SELECT users.id,
        users.display_name,
        sessions.expires_at,
        sessions.csrf_hash,
-       memberships.organization_id
+       memberships.organization_id,
+       memberships.role
 FROM sessions
 JOIN users ON users.id = sessions.user_id
 JOIN memberships ON memberships.user_id = users.id
@@ -203,6 +204,7 @@ type FindActiveSessionRow struct {
 	ExpiresAt      pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 	CsrfHash       []byte             `db:"csrf_hash" json:"csrf_hash"`
 	OrganizationID pgtype.UUID        `db:"organization_id" json:"organization_id"`
+	Role           string             `db:"role" json:"role"`
 }
 
 // A session only resolves for a user who belongs to an organization: without a
@@ -217,6 +219,7 @@ func (q *Queries) FindActiveSession(ctx context.Context, tokenHash []byte) (Find
 		&i.ExpiresAt,
 		&i.CsrfHash,
 		&i.OrganizationID,
+		&i.Role,
 	)
 	return i, err
 }

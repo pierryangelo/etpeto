@@ -9,14 +9,15 @@ import (
 )
 
 type Document struct {
-	ID              pgtype.UUID        `db:"id" json:"id"`
-	OrganizationID  pgtype.UUID        `db:"organization_id" json:"organization_id"`
-	CreatedBy       pgtype.UUID        `db:"created_by" json:"created_by"`
-	DocumentType    string             `db:"document_type" json:"document_type"`
-	Title           string             `db:"title" json:"title"`
-	CurrentRevision int32              `db:"current_revision" json:"current_revision"`
-	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                 pgtype.UUID        `db:"id" json:"id"`
+	OrganizationID     pgtype.UUID        `db:"organization_id" json:"organization_id"`
+	CreatedBy          pgtype.UUID        `db:"created_by" json:"created_by"`
+	DocumentType       string             `db:"document_type" json:"document_type"`
+	Title              string             `db:"title" json:"title"`
+	CurrentRevision    int32              `db:"current_revision" json:"current_revision"`
+	CreatedAt          pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	TemplateRevisionID pgtype.UUID        `db:"template_revision_id" json:"template_revision_id"`
 }
 
 type DocumentRevision struct {
@@ -66,6 +67,28 @@ type Session struct {
 	RevokedAt pgtype.Timestamptz `db:"revoked_at" json:"revoked_at"`
 	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	CsrfHash  []byte             `db:"csrf_hash" json:"csrf_hash"`
+}
+
+type Template struct {
+	ID             pgtype.UUID        `db:"id" json:"id"`
+	OrganizationID pgtype.UUID        `db:"organization_id" json:"organization_id"`
+	DocumentType   string             `db:"document_type" json:"document_type"`
+	Name           string             `db:"name" json:"name"`
+	Draft          []byte             `db:"draft" json:"draft"`
+	DraftVersion   int32              `db:"draft_version" json:"draft_version"`
+	DraftUpdatedAt pgtype.Timestamptz `db:"draft_updated_at" json:"draft_updated_at"`
+	DraftUpdatedBy pgtype.UUID        `db:"draft_updated_by" json:"draft_updated_by"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
+type TemplateRevision struct {
+	ID            pgtype.UUID        `db:"id" json:"id"`
+	TemplateID    pgtype.UUID        `db:"template_id" json:"template_id"`
+	Revision      int32              `db:"revision" json:"revision"`
+	Blueprint     []byte             `db:"blueprint" json:"blueprint"`
+	SchemaVersion int32              `db:"schema_version" json:"schema_version"`
+	PublishedAt   pgtype.Timestamptz `db:"published_at" json:"published_at"`
+	PublishedBy   pgtype.UUID        `db:"published_by" json:"published_by"`
 }
 
 type User struct {

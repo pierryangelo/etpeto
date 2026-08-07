@@ -3,12 +3,14 @@ package api
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/etpeto/etpeto/internal/document"
 	"github.com/etpeto/etpeto/internal/renderclient"
 	"github.com/etpeto/etpeto/internal/rendercontract"
+	templatedomain "github.com/etpeto/etpeto/internal/template"
 )
 
 // PreviewRenderer produces the official PDF. The API is the only caller of the
@@ -27,7 +29,13 @@ type PreviewOutput struct {
 // receives the organization of the authenticated session.
 type DocumentService interface {
 	List(ctx context.Context, organizationID string) ([]document.Summary, error)
-	Create(ctx context.Context, organizationID string, authorID string, title string) (document.Stored, error)
+	Create(
+		ctx context.Context,
+		organizationID string,
+		authorID string,
+		templateRevisionID string,
+		content document.Document,
+	) (document.Stored, error)
 	Open(ctx context.Context, organizationID string, documentID string) (document.Stored, error)
 	Save(
 		ctx context.Context,
@@ -50,6 +58,9 @@ type CreateDocumentInput struct {
 	CSRF    string `header:"X-Etpeto-Csrf"`
 	Body    struct {
 		Title string `json:"title" maxLength:"300"`
+		// TemplateRevisionID chooses the published script. When empty the
+		// organization's latest published revision is used.
+		TemplateRevisionID string `json:"templateRevisionId,omitempty"`
 	}
 }
 
@@ -86,6 +97,7 @@ func registerDocuments(
 	api huma.API,
 	documents DocumentService,
 	renderer PreviewRenderer,
+	templates TemplateService,
 	protected guard,
 ) {
 	huma.Register(api, huma.Operation{
@@ -130,7 +142,20 @@ func registerDocuments(
 		if documents == nil {
 			return nil, huma.Error503ServiceUnavailable("Documentos temporariamente indisponíveis")
 		}
-		created, err := documents.Create(ctx, user.OrganizationID, user.ID, input.Body.Title)
+		if templates == nil {
+			return nil, huma.Error503ServiceUnavailable("Roteiros temporariamente indisponíveis")
+		}
+		// A document is always born from a published script revision, and stays
+		// bound to it.
+		revision, err := resolveRevision(ctx, templates, user.OrganizationID, input.Body.TemplateRevisionID)
+		if err != nil {
+			return nil, err
+		}
+		content, err := revision.Blueprint.Instantiate(input.Body.Title)
+		if err != nil {
+			return nil, documentError(err)
+		}
+		created, err := documents.Create(ctx, user.OrganizationID, user.ID, revision.ID, content)
 		if err != nil {
 			return nil, documentError(err)
 		}
@@ -233,6 +258,36 @@ func registerDocuments(
 // configurable, versioned scripts exist.
 const defaultTemplateRevisionID = "etp-default-v1"
 
+// resolveRevision picks the requested published revision, or the organization's
+// most recent one when the caller did not choose.
+func resolveRevision(
+	ctx context.Context,
+	templates TemplateService,
+	organizationID string,
+	revisionID string,
+) (templatedomain.PublishedRevision, error) {
+	published, err := templates.ListPublished(ctx, organizationID)
+	if err != nil {
+		return templatedomain.PublishedRevision{}, templateError(err)
+	}
+	if len(published) == 0 {
+		return templatedomain.PublishedRevision{}, huma.Error422UnprocessableEntity(
+			"Nenhum roteiro publicado nesta organização",
+		)
+	}
+	chosen := revisionID
+	if chosen == "" {
+		chosen = published[0].ID
+	}
+	// The listing has no blueprint, so the content is fetched explicitly. This
+	// is also the check that the revision belongs to this organization.
+	revision, err := templates.FindPublished(ctx, organizationID, chosen)
+	if err != nil {
+		return templatedomain.PublishedRevision{}, templateError(err)
+	}
+	return revision, nil
+}
+
 func documentError(err error) error {
 	switch {
 	case errors.Is(err, document.ErrNotFound):
@@ -242,6 +297,9 @@ func documentError(err error) error {
 	case errors.Is(err, document.ErrInvalidDocument):
 		return huma.Error422UnprocessableEntity("Conteúdo do documento é inválido")
 	default:
+		// The client gets a safe message; the detail belongs in the log, or an
+		// unexpected failure becomes invisible to whoever operates the install.
+		slog.Error("document operation failed", "error", err)
 		return huma.Error503ServiceUnavailable("Documentos temporariamente indisponíveis")
 	}
 }

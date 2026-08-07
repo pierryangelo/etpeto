@@ -13,15 +13,75 @@ import (
 	"github.com/etpeto/etpeto/internal/document"
 	"github.com/etpeto/etpeto/internal/renderclient"
 	"github.com/etpeto/etpeto/internal/rendercontract"
+	templatedomain "github.com/etpeto/etpeto/internal/template"
 )
 
 type documentServiceStub struct {
-	summaries    []document.Summary
-	stored       document.Stored
-	err          error
-	savedContent document.Document
-	savedExpects int
-	organization string
+	summaries           []document.Summary
+	stored              document.Stored
+	err                 error
+	savedContent        document.Document
+	savedExpects        int
+	organization        string
+	createdFromRevision string
+}
+
+// templateServiceStub publishes one revision of the default script, which is
+// what a document is created from.
+type templateServiceStub struct {
+	published []templatedomain.PublishedRevision
+	err       error
+}
+
+func newTemplateServiceStub() *templateServiceStub {
+	return &templateServiceStub{published: []templatedomain.PublishedRevision{{
+		ID:           "revision-1",
+		TemplateID:   "template-1",
+		TemplateName: "Estudo Técnico Preliminar",
+		DocumentType: "etp",
+		Revision:     1,
+	}}}
+}
+
+func (s *templateServiceStub) List(context.Context, string) ([]templatedomain.Summary, error) {
+	return nil, s.err
+}
+
+func (s *templateServiceStub) Get(context.Context, string, string) (templatedomain.Draft, error) {
+	return templatedomain.Draft{}, s.err
+}
+
+func (s *templateServiceStub) SaveDraft(
+	context.Context, string, string, string, int, templatedomain.Blueprint,
+) (templatedomain.Draft, error) {
+	return templatedomain.Draft{}, s.err
+}
+
+func (s *templateServiceStub) Publish(
+	context.Context, string, string, string,
+) (templatedomain.PublishedRevision, error) {
+	return templatedomain.PublishedRevision{}, s.err
+}
+
+func (s *templateServiceStub) ListPublished(
+	context.Context, string,
+) ([]templatedomain.PublishedRevision, error) {
+	return s.published, s.err
+}
+
+// Only this call carries the script itself, exactly as the repository does.
+func (s *templateServiceStub) FindPublished(
+	_ context.Context,
+	_ string,
+	revisionID string,
+) (templatedomain.PublishedRevision, error) {
+	for _, revision := range s.published {
+		if revision.ID == revisionID {
+			revision.Blueprint = templatedomain.DefaultBlueprint()
+			return revision, nil
+		}
+	}
+	return templatedomain.PublishedRevision{}, templatedomain.ErrNotFound
 }
 
 func (s *documentServiceStub) List(_ context.Context, organizationID string) ([]document.Summary, error) {
@@ -29,16 +89,19 @@ func (s *documentServiceStub) List(_ context.Context, organizationID string) ([]
 	return s.summaries, s.err
 }
 
-func (s *documentServiceStub) Create(_ context.Context, organizationID string, _ string, title string) (document.Stored, error) {
+func (s *documentServiceStub) Create(
+	_ context.Context,
+	organizationID string,
+	_ string,
+	templateRevisionID string,
+	content document.Document,
+) (document.Stored, error) {
 	s.organization = organizationID
+	s.createdFromRevision = templateRevisionID
 	if s.err != nil {
 		return document.Stored{}, s.err
 	}
-	created, err := document.New(title)
-	if err != nil {
-		return document.Stored{}, err
-	}
-	return document.Stored{ID: "document-1", Revision: 1, Content: created}, nil
+	return document.Stored{ID: "document-1", Revision: 1, Content: content}, nil
 }
 
 func (s *documentServiceStub) Open(_ context.Context, organizationID string, _ string) (document.Stored, error) {
@@ -293,6 +356,7 @@ func documentHandler(documents DocumentService, renderer PreviewRenderer) http.H
 		Renderer:  renderer,
 		Auth:      &authStub{authUser: authenticatedTestUser()},
 		Documents: documents,
+		Templates: newTemplateServiceStub(),
 	})
 }
 

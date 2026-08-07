@@ -74,7 +74,8 @@ SELECT users.id,
        users.display_name,
        sessions.expires_at,
        sessions.csrf_hash,
-       memberships.organization_id
+       memberships.organization_id,
+       memberships.role
 FROM sessions
 JOIN users ON users.id = sessions.user_id
 JOIN memberships ON memberships.user_id = users.id

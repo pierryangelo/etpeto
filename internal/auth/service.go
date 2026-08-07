@@ -31,11 +31,15 @@ type SessionRecord struct {
 // AuthenticatedUser describes the resolved session. CSRFHash never leaves the
 // server: mutating routes compare it against the token sent in a request header.
 type AuthenticatedUser struct {
-	ID             string    `json:"id"`
-	DisplayName    string    `json:"displayName"`
-	OrganizationID string    `json:"-"`
-	ExpiresAt      time.Time `json:"-"`
-	CSRFHash       []byte    `json:"-"`
+	ID             string `json:"id"`
+	DisplayName    string `json:"displayName"`
+	OrganizationID string `json:"-"`
+	// Role is the membership role, which decides what the session may do. It
+	// stays out of the JSON body: the browser is told what it can see through
+	// the routes it is allowed to call, not through a claim it could edit.
+	Role      string    `json:"role"`
+	ExpiresAt time.Time `json:"-"`
+	CSRFHash  []byte    `json:"-"`
 }
 
 type LoginResult struct {
