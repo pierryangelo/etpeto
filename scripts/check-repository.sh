@@ -7,6 +7,7 @@ for path in \
   Makefile \
   LICENSE \
   README.md \
+  TODO.md \
   CONTRIBUTING.md \
   CODE_OF_CONDUCT.md \
   SECURITY.md \
@@ -31,5 +32,6 @@ grep -q '^help:' Makefile
 grep -q 'GNU AFFERO GENERAL PUBLIC LICENSE' LICENSE
 grep -q 'cp .env.example .env' README.md
 grep -q '\[Arquitetura\]' README.md
+grep -q '\[Pendências e roadmap\]' README.md
 grep -q '\[Segurança\]' README.md
 grep -q '\[Licença\]' README.md

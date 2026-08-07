@@ -50,6 +50,7 @@ Leia o [runbook de desenvolvimento](docs/runbooks/development.md) para execuçã
 
 - [Arquitetura](docs/architecture/foundation.md) — limites, fluxo de dados e justificativa das tecnologias;
 - [Especificação do produto](docs/specs/2026-08-06-etpeto-design.md) — direção funcional e visual aprovada;
+- [Pendências e roadmap](TODO.md) — o que ainda é demonstrativo e os critérios para um MVP utilizável;
 - [Como contribuir](CONTRIBUTING.md) — TDD, DCO e critérios para pull requests;
 - [Segurança](SECURITY.md) — como comunicar vulnerabilidades de forma privada;
 - [Governança](GOVERNANCE.md) e [suporte](SUPPORT.md);
