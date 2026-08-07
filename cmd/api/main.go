@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -23,6 +24,8 @@ const defaultAddress = ":8080"
 
 type config struct {
 	Address          string
+	TrustProxy       bool
+	ThrottleScale    int
 	DatabaseURL      string
 	RendererURL      string
 	RendererToken    string
@@ -36,6 +39,13 @@ func loadConfig(getenv func(string) string) (config, error) {
 		RendererURL:      getenv("ETPETO_RENDERER_URL"),
 		RendererToken:    getenv("ETPETO_RENDERER_TOKEN"),
 		OrganizationSlug: getenv("ETPETO_ORGANIZATION_SLUG"),
+		// The API sits behind the gateway in the reference stack, so the
+		// forwarded address is the real client. Exposing the API directly would
+		// make that header attacker-controlled, hence a deliberate setting.
+		TrustProxy: getenv("ETPETO_TRUST_PROXY") != "false",
+		// Raise this only where many people reach the API through one address,
+		// such as an installation published to the internet behind NAT.
+		ThrottleScale: positiveOrOne(getenv("ETPETO_THROTTLE_SCALE")),
 	}
 	if configuration.Address == "" {
 		configuration.Address = defaultAddress
@@ -53,6 +63,14 @@ func loadConfig(getenv func(string) string) (config, error) {
 		return config{}, errors.New("ETPETO_RENDERER_TOKEN is required")
 	}
 	return configuration, nil
+}
+
+func positiveOrOne(value string) int {
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 1 {
+		return 1
+	}
+	return parsed
 }
 
 func main() {
@@ -83,28 +101,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	router := api.NewRouter(api.Dependencies{
+		Readiness: database.Checker{Pinger: pool},
+		Renderer: renderclient.Client{
+			BaseURL: configuration.RendererURL,
+			Token:   configuration.RendererToken,
+			HTTP:    &http.Client{Timeout: 20 * time.Second},
+		},
+		Auth: authentication,
+		Documents: documentdomain.Service{
+			Repository: documentdomain.PostgresRepository{Pool: pool},
+		},
+		Templates: templatedomain.Service{
+			Repository: templatedomain.PostgresRepository{Pool: pool},
+		},
+		People: authdomain.Invitations{
+			Repository: authdomain.PostgresInvitationRepository{Pool: pool},
+			Passwords:  authdomain.PasswordHasher{},
+			Tokens:     authdomain.SessionIssuer{TTL: authdomain.InvitationTTL},
+		},
+	})
+
 	server := &http.Server{
 		Addr: configuration.Address,
-		Handler: api.NewRouter(api.Dependencies{
-			Readiness: database.Checker{Pinger: pool},
-			Renderer: renderclient.Client{
-				BaseURL: configuration.RendererURL,
-				Token:   configuration.RendererToken,
-				HTTP:    &http.Client{Timeout: 20 * time.Second},
-			},
-			Auth: authentication,
-			Documents: documentdomain.Service{
-				Repository: documentdomain.PostgresRepository{Pool: pool},
-			},
-			Templates: templatedomain.Service{
-				Repository: templatedomain.PostgresRepository{Pool: pool},
-			},
-			People: authdomain.Invitations{
-				Repository: authdomain.PostgresInvitationRepository{Pool: pool},
-				Passwords:  authdomain.PasswordHasher{},
-				Tokens:     authdomain.SessionIssuer{TTL: authdomain.InvitationTTL},
-			},
-		}),
+		Handler: api.Throttle(
+			router,
+			api.ScaledThrottles(configuration.ThrottleScale),
+			configuration.TrustProxy,
+		),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

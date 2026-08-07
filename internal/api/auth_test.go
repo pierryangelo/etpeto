@@ -235,3 +235,70 @@ func postJSON(
 	handler.ServeHTTP(response, request)
 	return response
 }
+
+// Brute force against one account is what the per-account limit exists for.
+// The per-address limit stays loose because a whole public body shares a
+// handful of addresses.
+func TestRepeatedWrongPasswordsLockThatAccountOnly(t *testing.T) {
+	authentication := &authStub{loginErr: authdomain.ErrInvalidCredentials}
+	handler := NewRouter(Dependencies{Readiness: readyStub{}, Auth: authentication})
+
+	for attempt := 0; attempt < failedSignInRule.Limit; attempt++ {
+		postJSON(t, handler, "/api/v1/auth/local/login", map[string]string{
+			"email": "alvo@orgao.gov.br", "password": "tentativa",
+		})
+	}
+	authentication.loginErr = nil
+	authentication.loginResult = authdomain.LoginResult{Token: "t", CSRFToken: validCSRFToken()}
+
+	// Even the right password is refused once the account is held back.
+	blocked := postJSON(t, handler, "/api/v1/auth/local/login", map[string]string{
+		"email": "alvo@orgao.gov.br", "password": "senha correta",
+	})
+	if blocked.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", blocked.Code, http.StatusUnauthorized)
+	}
+
+	// Another account is untouched: the limit protects one account, it does not
+	// take the organization down with it.
+	other := postJSON(t, handler, "/api/v1/auth/local/login", map[string]string{
+		"email": "outra@orgao.gov.br", "password": "senha correta",
+	})
+	if other.Code != http.StatusOK {
+		t.Fatalf("a different account was locked out: %d", other.Code)
+	}
+}
+
+func TestASuccessfulSignInDoesNotCountAgainstTheAccount(t *testing.T) {
+	authentication := &authStub{loginResult: authdomain.LoginResult{
+		Token: "t", CSRFToken: validCSRFToken(),
+	}}
+	handler := NewRouter(Dependencies{Readiness: readyStub{}, Auth: authentication})
+
+	// Someone who signs in many times a day must never be locked out for it.
+	for attempt := 0; attempt < failedSignInRule.Limit*2; attempt++ {
+		response := postJSON(t, handler, "/api/v1/auth/local/login", map[string]string{
+			"email": "pessoa@orgao.gov.br", "password": "senha correta",
+		})
+		if response.Code != http.StatusOK {
+			t.Fatalf("sign-in %d was refused: %d", attempt, response.Code)
+		}
+	}
+}
+
+func TestALockedAccountIsIndistinguishableFromAWrongPassword(t *testing.T) {
+	authentication := &authStub{loginErr: authdomain.ErrInvalidCredentials}
+	handler := NewRouter(Dependencies{Readiness: readyStub{}, Auth: authentication})
+	credentials := map[string]string{"email": "alvo@orgao.gov.br", "password": "x"}
+
+	first := postJSON(t, handler, "/api/v1/auth/local/login", credentials).Body.String()
+	for attempt := 0; attempt < failedSignInRule.Limit+2; attempt++ {
+		postJSON(t, handler, "/api/v1/auth/local/login", credentials)
+	}
+	locked := postJSON(t, handler, "/api/v1/auth/local/login", credentials).Body.String()
+
+	// Probing must not reveal that an account exists and is being defended.
+	if first != locked {
+		t.Fatalf("the locked response differs:\n%s\n%s", first, locked)
+	}
+}

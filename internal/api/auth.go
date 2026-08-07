@@ -5,8 +5,11 @@ import (
 	"errors"
 	"net/http"
 
+	"time"
+
 	"github.com/danielgtaylor/huma/v2"
 	authdomain "github.com/etpeto/etpeto/internal/auth"
+	"github.com/etpeto/etpeto/internal/platform/ratelimit"
 )
 
 type AuthService interface {
@@ -51,8 +54,15 @@ type LogoutOutput struct {
 	SetCookie []http.Cookie `header:"Set-Cookie"`
 }
 
+// failedSignInRule holds back brute force against one account. It counts only
+// failures, so someone who mistypes and then succeeds is not locked out, and it
+// is keyed by address rather than by network: an attacker gains nothing by
+// spreading attempts across addresses against the same account.
+var failedSignInRule = ratelimit.Rule{Limit: 8, Window: 15 * time.Minute}
+
 func registerAuth(api huma.API, authentication AuthService) {
 	protected := guard{authentication: authentication}
+	failedSignIns := ratelimit.New(failedSignInRule)
 	huma.Register(api, huma.Operation{
 		OperationID:  "local-login",
 		Method:       http.MethodPost,
@@ -64,8 +74,15 @@ func registerAuth(api huma.API, authentication AuthService) {
 		if authentication == nil {
 			return nil, huma.Error503ServiceUnavailable("Autenticação temporariamente indisponível")
 		}
+		account := authdomain.NormalizeEmail(input.Body.Email)
+		if blocked, _ := failedSignIns.Blocked(account); blocked {
+			// The message is the same one an unknown account gets, so probing
+			// cannot tell a locked account from a nonexistent one.
+			return nil, huma.Error401Unauthorized("E-mail ou senha inválidos")
+		}
 		result, err := authentication.Login(ctx, input.Body.Email, input.Body.Password)
 		if errors.Is(err, authdomain.ErrInvalidCredentials) {
+			failedSignIns.Allow(account)
 			return nil, huma.Error401Unauthorized("E-mail ou senha inválidos")
 		}
 		if err != nil {
