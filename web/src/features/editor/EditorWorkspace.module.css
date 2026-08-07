@@ -383,63 +383,6 @@
   line-height: 1.6;
 }
 
-.toolbar {
-  display: flex;
-  width: max-content;
-  max-width: 100%;
-  align-items: center;
-  gap: 2px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-2);
-  background: var(--color-panel);
-  padding: 4px;
-}
-
-.toolbar button {
-  display: grid;
-  width: 30px;
-  height: 28px;
-  place-items: center;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-}
-
-.toolbar button:hover {
-  background: var(--color-paper);
-  color: var(--color-ink);
-  box-shadow: var(--shadow-1);
-}
-
-.toolbar > span {
-  width: 1px;
-  height: 18px;
-  margin: 0 3px;
-  background: var(--color-border);
-}
-
-.textSurface {
-  min-height: 150px;
-  margin-top: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-3);
-  padding: var(--space-5);
-  color: var(--color-text);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 15px;
-  line-height: 1.72;
-}
-
-.textSurface p {
-  margin: 0 0 0.85em;
-}
-
-.textSurface p:last-child {
-  margin-bottom: 0;
-}
-
 .structuredBlock {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -755,7 +698,6 @@
 @media (prefers-reduced-motion: no-preference) {
   .sectionButton,
   .iconButton,
-  .toolbar button,
   .addElementButton {
     transition:
       color 140ms ease,

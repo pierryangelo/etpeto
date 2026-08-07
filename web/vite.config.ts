@@ -9,6 +9,26 @@ export default defineConfig({
       "/api": "http://localhost:8080",
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "lexical",
+              test: /node_modules\/(?:@lexical|lexical)\//,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: "vendor",
+              test: /node_modules/,
+              includeDependenciesRecursively: false,
+            },
+          ],
+        },
+      },
+    },
+  },
   test: {
     environment: "jsdom",
     execArgv: ["--no-experimental-webstorage"],

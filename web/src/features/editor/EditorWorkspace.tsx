@@ -1,5 +1,7 @@
+import type { SerializedEditorState } from "lexical";
 import { useEffect, useState } from "react";
 
+import { RichTextElement } from "./RichTextElement";
 import styles from "./EditorWorkspace.module.css";
 
 const layoutStorageKey = "etpeto:editor-layout:v1";
@@ -27,6 +29,24 @@ const defaultPreference: LayoutPreference = {
   outlineOpen: true,
   previewOpen: true,
 };
+
+const requirementsInitialState = {
+  root: {
+    children: [
+      lexicalParagraph(
+        "Os equipamentos deverão atender às atividades administrativas e técnicas, com desempenho compatível com o ciclo de uso previsto.",
+      ),
+      lexicalParagraph(
+        "A contratação deverá incluir garantia, suporte e critérios de eficiência energética verificáveis.",
+      ),
+    ],
+    direction: null,
+    format: "",
+    indent: 0,
+    type: "root",
+    version: 1,
+  },
+} as SerializedEditorState;
 
 function readPreference(): LayoutPreference {
   try {
@@ -248,32 +268,12 @@ function DocumentEditor() {
           evitando direcionamento de marca ou solução.
         </p>
 
-        <div className={styles.toolbar} role="toolbar" aria-label="Formatação">
-          <button type="button" aria-label="Negrito">
-            <strong>B</strong>
-          </button>
-          <button type="button" aria-label="Itálico">
-            <em>I</em>
-          </button>
-          <button type="button" aria-label="Lista com marcadores">
-            ☷
-          </button>
-          <span aria-hidden="true" />
-          <button type="button" aria-label="Inserir link">
-            ↗
-          </button>
-        </div>
-
-        <div className={styles.textSurface} aria-label="Conteúdo da seção">
-          <p>
-            Os equipamentos deverão atender às atividades administrativas e
-            técnicas, com desempenho compatível com o ciclo de uso previsto.
-          </p>
-          <p>
-            A contratação deverá incluir garantia, suporte e critérios de
-            eficiência energética verificáveis.
-          </p>
-        </div>
+        <RichTextElement
+          documentId="etp-notebooks"
+          elementId="requisitos-texto"
+          initialState={requirementsInitialState}
+          onChange={() => undefined}
+        />
 
         <section className={styles.structuredBlock}>
           <div className={styles.blockIcon} aria-hidden="true">
@@ -294,6 +294,29 @@ function DocumentEditor() {
       </article>
     </main>
   );
+}
+
+function lexicalParagraph(text: string) {
+  return {
+    children: [
+      {
+        detail: 0,
+        format: 0,
+        mode: "normal",
+        style: "",
+        text,
+        type: "text",
+        version: 1,
+      },
+    ],
+    direction: null,
+    format: "",
+    indent: 0,
+    textFormat: 0,
+    textStyle: "",
+    type: "paragraph",
+    version: 1,
+  };
 }
 
 function DocumentPreview({

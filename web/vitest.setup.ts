@@ -13,3 +13,15 @@ class ResizeObserverStub implements ResizeObserver {
 }
 
 globalThis.ResizeObserver = ResizeObserverStub;
+
+if (!Range.prototype.getBoundingClientRect) {
+  Range.prototype.getBoundingClientRect = () => new DOMRect();
+}
+
+if (!Range.prototype.getClientRects) {
+  Range.prototype.getClientRects = () => ({
+    item: () => null,
+    length: 0,
+    [Symbol.iterator]: function* () {},
+  });
+}
