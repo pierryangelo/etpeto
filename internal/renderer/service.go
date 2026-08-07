@@ -2,6 +2,7 @@ package renderer
 
 import (
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -21,12 +22,17 @@ type problem struct {
 	Code   string `json:"code"`
 }
 
-func NewHandler(runner Runner) http.Handler {
+func NewHandler(runner Runner, token string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /livez", func(response http.ResponseWriter, _ *http.Request) {
 		response.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("POST /internal/render", func(response http.ResponseWriter, request *http.Request) {
+		providedToken := request.Header.Get("X-Etpeto-Renderer-Token")
+		if token == "" || subtle.ConstantTimeCompare([]byte(providedToken), []byte(token)) != 1 {
+			writeProblem(response, http.StatusUnauthorized, "renderer_authentication_required", "Autenticação interna inválida")
+			return
+		}
 		render(response, request, runner)
 	})
 	return mux

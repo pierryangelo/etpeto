@@ -19,6 +19,8 @@ type runnerStub struct {
 	source string
 }
 
+const testRendererToken = "renderer-secret"
+
 func (r *runnerStub) Render(_ context.Context, source string) ([]byte, error) {
 	r.source = source
 	return r.pdf, r.err
@@ -26,13 +28,14 @@ func (r *runnerStub) Render(_ context.Context, source string) ([]byte, error) {
 
 func TestRenderReturnsPDFAndETag(t *testing.T) {
 	runner := &runnerStub{pdf: []byte("%PDF-1.7 fixture")}
-	handler := NewHandler(runner)
+	handler := NewHandler(runner, testRendererToken)
 	body, err := json.Marshal(validRenderRequest())
 	if err != nil {
 		t.Fatal(err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "/internal/render", bytes.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Etpeto-Renderer-Token", testRendererToken)
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
@@ -56,9 +59,10 @@ func TestRenderReturnsPDFAndETag(t *testing.T) {
 
 func TestRenderHidesRunnerDetails(t *testing.T) {
 	runner := &runnerStub{err: errors.New("secret Typst stderr with document content")}
-	handler := NewHandler(runner)
+	handler := NewHandler(runner, testRendererToken)
 	body, _ := json.Marshal(validRenderRequest())
 	request := httptest.NewRequest(http.MethodPost, "/internal/render", bytes.NewReader(body))
+	request.Header.Set("X-Etpeto-Renderer-Token", testRendererToken)
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
@@ -75,18 +79,32 @@ func TestRenderHidesRunnerDetails(t *testing.T) {
 }
 
 func TestRenderRejectsBodyLargerThanTwoMiB(t *testing.T) {
-	handler := NewHandler(&runnerStub{})
+	handler := NewHandler(&runnerStub{}, testRendererToken)
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/internal/render",
 		strings.NewReader(strings.Repeat("x", maxRequestBytes+1)),
 	)
+	request.Header.Set("X-Etpeto-Renderer-Token", testRendererToken)
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
 
 	if response.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusRequestEntityTooLarge)
+	}
+}
+
+func TestRenderRejectsMissingInternalToken(t *testing.T) {
+	handler := NewHandler(&runnerStub{}, testRendererToken)
+	body, _ := json.Marshal(validRenderRequest())
+	request := httptest.NewRequest(http.MethodPost, "/internal/render", bytes.NewReader(body))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusUnauthorized)
 	}
 }
 

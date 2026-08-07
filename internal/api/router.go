@@ -7,10 +7,16 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 )
 
-func NewRouter(readiness ReadinessChecker) http.Handler {
+type Dependencies struct {
+	Readiness ReadinessChecker
+	Renderer  PreviewRenderer
+}
+
+func NewRouter(dependencies Dependencies) http.Handler {
 	mux := http.NewServeMux()
 	config := huma.DefaultConfig("Etpeto API", "0.1.0")
 	api := humago.New(mux, config)
-	registerHealth(api, readiness)
+	registerHealth(api, dependencies.Readiness)
+	registerPreview(api, dependencies.Renderer)
 	return mux
 }

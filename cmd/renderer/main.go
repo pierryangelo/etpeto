@@ -30,6 +30,11 @@ func main() {
 		}
 		maxConcurrent = value
 	}
+	token := os.Getenv("ETPETO_RENDERER_TOKEN")
+	if token == "" {
+		slog.Error("ETPETO_RENDERER_TOKEN is required")
+		os.Exit(1)
+	}
 
 	runner, err := renderer.NewCLIRunner(os.Getenv("ETPETO_RENDERER_TEMP_DIR"), maxConcurrent, 15*time.Second)
 	if err != nil {
@@ -38,7 +43,7 @@ func main() {
 	}
 	server := &http.Server{
 		Addr:              address,
-		Handler:           renderer.NewHandler(runner),
+		Handler:           renderer.NewHandler(runner, token),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      20 * time.Second,

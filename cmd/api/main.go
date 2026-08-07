@@ -12,25 +12,36 @@ import (
 
 	"github.com/etpeto/etpeto/internal/api"
 	"github.com/etpeto/etpeto/internal/platform/database"
+	"github.com/etpeto/etpeto/internal/renderclient"
 )
 
 const defaultAddress = ":8080"
 
 type config struct {
-	Address     string
-	DatabaseURL string
+	Address       string
+	DatabaseURL   string
+	RendererURL   string
+	RendererToken string
 }
 
 func loadConfig(getenv func(string) string) (config, error) {
 	configuration := config{
-		Address:     getenv("ETPETO_API_ADDR"),
-		DatabaseURL: getenv("ETPETO_DATABASE_URL"),
+		Address:       getenv("ETPETO_API_ADDR"),
+		DatabaseURL:   getenv("ETPETO_DATABASE_URL"),
+		RendererURL:   getenv("ETPETO_RENDERER_URL"),
+		RendererToken: getenv("ETPETO_RENDERER_TOKEN"),
 	}
 	if configuration.Address == "" {
 		configuration.Address = defaultAddress
 	}
 	if configuration.DatabaseURL == "" {
 		return config{}, errors.New("ETPETO_DATABASE_URL is required")
+	}
+	if configuration.RendererURL == "" {
+		return config{}, errors.New("ETPETO_RENDERER_URL is required")
+	}
+	if configuration.RendererToken == "" {
+		return config{}, errors.New("ETPETO_RENDERER_TOKEN is required")
 	}
 	return configuration, nil
 }
@@ -52,8 +63,15 @@ func main() {
 	defer pool.Close()
 
 	server := &http.Server{
-		Addr:              configuration.Address,
-		Handler:           api.NewRouter(database.Checker{Pinger: pool}),
+		Addr: configuration.Address,
+		Handler: api.NewRouter(api.Dependencies{
+			Readiness: database.Checker{Pinger: pool},
+			Renderer: renderclient.Client{
+				BaseURL: configuration.RendererURL,
+				Token:   configuration.RendererToken,
+				HTTP:    &http.Client{Timeout: 20 * time.Second},
+			},
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

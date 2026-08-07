@@ -19,7 +19,7 @@ func (s readyStub) Ready(context.Context) error {
 }
 
 func TestLivenessReportsOK(t *testing.T) {
-	handler := NewRouter(readyStub{})
+	handler := NewRouter(Dependencies{Readiness: readyStub{}})
 
 	response := request(t, handler, "/livez")
 
@@ -30,7 +30,7 @@ func TestLivenessReportsOK(t *testing.T) {
 }
 
 func TestReadinessReportsUnavailableWithoutLeakingDependencyError(t *testing.T) {
-	handler := NewRouter(readyStub{err: errors.New("dial postgres at secret-host")})
+	handler := NewRouter(Dependencies{Readiness: readyStub{err: errors.New("dial postgres at secret-host")}})
 
 	response := request(t, handler, "/readyz")
 
@@ -44,7 +44,7 @@ func TestReadinessReportsUnavailableWithoutLeakingDependencyError(t *testing.T) 
 }
 
 func TestServiceInfoIdentifiesEtpeto(t *testing.T) {
-	handler := NewRouter(readyStub{})
+	handler := NewRouter(Dependencies{Readiness: readyStub{}})
 
 	response := request(t, handler, "/api/v1/service-info")
 
@@ -64,7 +64,7 @@ func TestServiceInfoIdentifiesEtpeto(t *testing.T) {
 }
 
 func TestOpenAPIContainsPublicOperations(t *testing.T) {
-	handler := NewRouter(readyStub{})
+	handler := NewRouter(Dependencies{Readiness: readyStub{}})
 
 	response := request(t, handler, "/openapi.json")
 
@@ -72,7 +72,7 @@ func TestOpenAPIContainsPublicOperations(t *testing.T) {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
 	}
 	body := response.Body.String()
-	for _, path := range []string{"/livez", "/readyz", "/api/v1/service-info"} {
+	for _, path := range []string{"/livez", "/readyz", "/api/v1/service-info", "/api/v1/previews"} {
 		if !strings.Contains(body, path) {
 			t.Errorf("OpenAPI does not contain %s", path)
 		}
