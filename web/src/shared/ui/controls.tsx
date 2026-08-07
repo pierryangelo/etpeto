@@ -1,6 +1,7 @@
+import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { Field as BaseField } from "@base-ui/react/field";
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
-import { useId, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 /**
  * The primitives every screen composes.
@@ -317,5 +318,98 @@ export function PanelActions({ children }: { children: ReactNode }) {
     <div className="mt-auto flex gap-1.5 border-t border-line p-2">
       {children}
     </div>
+  );
+}
+
+/** A modal for a short, focused task. */
+export function Modal({
+  open,
+  title,
+  description,
+  onOpenChange,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  description?: string;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <BaseDialog.Root open={open} onOpenChange={onOpenChange}>
+      <BaseDialog.Portal>
+        <BaseDialog.Backdrop className="fixed inset-0 bg-[rgb(20_21_23/35%)]" />
+        <BaseDialog.Popup className="fixed left-1/2 top-1/2 w-[min(440px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-3 border border-line bg-paper p-5 shadow-[0_16px_48px_rgb(20_21_23/18%)]">
+          <BaseDialog.Title className="ds-title mb-1">{title}</BaseDialog.Title>
+          {description && (
+            <BaseDialog.Description className="ds-help mb-4 block">
+              {description}
+            </BaseDialog.Description>
+          )}
+          {children}
+        </BaseDialog.Popup>
+      </BaseDialog.Portal>
+    </BaseDialog.Root>
+  );
+}
+
+/** A read-only value meant to be copied, such as an invitation link. */
+export function CopyableValue({
+  value,
+  label,
+}: {
+  value: string;
+  label: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex gap-1.5">
+      <input
+        readOnly
+        aria-label={label}
+        value={value}
+        onFocus={(event) => event.currentTarget.select()}
+        className="ds-input font-mono text-11.5px"
+      />
+      <Button
+        onClick={() => {
+          void navigator.clipboard?.writeText(value);
+          setCopied(true);
+        }}
+      >
+        {copied ? "Copiado" : "Copiar"}
+      </Button>
+    </div>
+  );
+}
+
+export function Select({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Field label={label}>
+      {({ id, className }) => (
+        <select
+          id={id}
+          className={className}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
+    </Field>
   );
 }

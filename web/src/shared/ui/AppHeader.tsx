@@ -19,6 +19,13 @@ function canManageScripts(role: string | undefined): boolean {
   return role !== undefined && scriptManagerRoles.has(role);
 }
 
+// Only the administration manages access; a script manager shapes documents.
+const accessAdminRoles = new Set(["organization_admin", "installation_admin"]);
+
+function canManageAccess(role: string | undefined): boolean {
+  return role !== undefined && accessAdminRoles.has(role);
+}
+
 export function AppHeader({ children }: AppHeaderProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -50,6 +57,9 @@ export function AppHeader({ children }: AppHeaderProps) {
         <NavLink to="/documentos">Documentos</NavLink>
         {canManageScripts(session.data?.role) && (
           <NavLink to="/roteiros">Roteiros</NavLink>
+        )}
+        {canManageAccess(session.data?.role) && (
+          <NavLink to="/pessoas">Pessoas</NavLink>
         )}
       </nav>
       {children}

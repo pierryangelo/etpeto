@@ -3,6 +3,8 @@ import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 import { LoginPage } from "../features/auth/LoginPage";
+import { AcceptInvitePage } from "../features/people/AcceptInvitePage";
+import { PeoplePage } from "../features/people/PeoplePage";
 import { DocumentsPage } from "../features/documents/DocumentsPage";
 import { EditorWorkspace } from "../features/editor/EditorWorkspace";
 import { TemplateEditorPage } from "../features/templates/TemplateEditorPage";
@@ -30,11 +32,14 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/entrar" element={<LoginPage />} />
+          {/* Reached without a session: it is how someone gets an account. */}
+          <Route path="/convite" element={<AcceptInvitePage />} />
           <Route element={<RequireSession />}>
             <Route path="/documentos" element={<DocumentsPage />} />
             <Route path="/documentos/:id" element={<EditorWorkspace />} />
             <Route path="/roteiros" element={<TemplatesPage />} />
             <Route path="/roteiros/:id" element={<TemplateEditorPage />} />
+            <Route path="/pessoas" element={<PeoplePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/documentos" replace />} />
         </Routes>

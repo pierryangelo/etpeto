@@ -156,6 +156,18 @@ export type TemplateSummary = z.infer<typeof templateSummarySchema>;
 export type TemplateDraft = z.infer<typeof templateDraftSchema>;
 export type PublishedTemplate = z.infer<typeof publishedTemplateSchema>;
 
+export const personSchema = z.object({
+  userId: z.string().optional(),
+  invitationId: z.string().optional(),
+  displayName: z.string(),
+  email: z.string(),
+  role: z.string(),
+  pending: z.boolean(),
+  invitedUntil: z.string().optional(),
+});
+
+export type Person = z.infer<typeof personSchema>;
+
 export type AuthenticatedUser = z.infer<typeof userSchema>;
 export type DocumentSummary = z.infer<typeof documentSummarySchema>;
 export type DocumentContent = z.infer<typeof documentContentSchema>;
@@ -332,6 +344,60 @@ export const api = {
       publishedTemplateSchema,
       { method: "POST" },
     );
+  },
+
+  async listPeople(): Promise<Person[]> {
+    const body = await requestJson(
+      "/api/v1/people",
+      z.object({ people: z.array(personSchema) }),
+    );
+    return body.people;
+  },
+
+  /** Returns the invitation token exactly once, to be sent by the org's channel. */
+  invitePerson(
+    email: string,
+    displayName: string,
+    role: string,
+  ): Promise<{ person: Person; inviteToken: string }> {
+    return requestJson(
+      "/api/v1/people/invitations",
+      z.object({ person: personSchema, inviteToken: z.string() }),
+      { method: "POST", body: { email, displayName, role } },
+    );
+  },
+
+  async revokeInvitation(id: string): Promise<void> {
+    await request(`/api/v1/people/invitations/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  },
+
+  async changePersonRole(
+    userId: string,
+    currentRole: string,
+    role: string,
+  ): Promise<void> {
+    await request(`/api/v1/people/${encodeURIComponent(userId)}/role`, {
+      method: "PUT",
+      body: { currentRole, role },
+    });
+  },
+
+  describeInvitation(
+    token: string,
+  ): Promise<{ displayName: string; email: string }> {
+    return requestJson(
+      `/api/v1/invitations?token=${encodeURIComponent(token)}`,
+      z.object({ displayName: z.string(), email: z.string() }),
+    );
+  },
+
+  async acceptInvitation(token: string, password: string): Promise<void> {
+    await request("/api/v1/invitations/acceptance", {
+      method: "POST",
+      body: { token, password },
+    });
   },
 
   async previewDocument(id: string): Promise<Blob> {

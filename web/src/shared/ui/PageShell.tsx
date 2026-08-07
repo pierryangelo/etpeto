@@ -5,7 +5,7 @@ export function PageShell({
   header,
   children,
 }: {
-  header: ReactNode;
+  header?: ReactNode;
   children: ReactNode;
 }) {
   return (
