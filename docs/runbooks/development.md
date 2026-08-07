@@ -70,3 +70,17 @@ Adicione migrations em `db/migrations` sem alterar migrations já publicadas. At
 ## Renderer
 
 O endpoint do renderer é interno e exige `ETPETO_RENDERER_TOKEN`. Nunca publique sua porta. Para mudanças no contrato, comece em `internal/rendercontract`, escreva testes de validação, adapte renderer e cliente e execute o smoke completo.
+
+## Auxiliar de credenciais do Docker ausente
+
+Em máquinas com Colima ou Podman, `docker compose build` pode falhar com
+`docker-credential-osxkeychain: executable file not found`. O
+`~/.docker/config.json` nomeia um auxiliar que veio com o Docker Desktop e não
+existe ali.
+
+Remova a linha `"credsStore"` do arquivo — seguro enquanto `auths` estiver
+vazio, o que vale para quem não faz login em registro privado — ou instale o
+auxiliar com `brew install docker-credential-helper`.
+
+O `make start` reconhece esse erro e explica a saída em vez de mostrar o log do
+buildkit.
