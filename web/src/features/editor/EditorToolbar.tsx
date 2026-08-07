@@ -3,18 +3,6 @@ import { Toolbar } from "@base-ui/react/toolbar";
 import { Tooltip } from "@base-ui/react/tooltip";
 import type { ReactNode } from "react";
 
-// Compiled into the bundle at build time; no request ever leaves the page.
-import IconBold from "~icons/lucide/bold";
-import IconChevronDown from "~icons/lucide/chevron-down";
-import IconItalic from "~icons/lucide/italic";
-import IconLink from "~icons/lucide/link";
-import IconList from "~icons/lucide/list";
-import IconListOrdered from "~icons/lucide/list-ordered";
-import IconRedo from "~icons/lucide/redo-2";
-import IconUnderline from "~icons/lucide/underline";
-import IconUndo from "~icons/lucide/undo-2";
-import IconUnlink from "~icons/lucide/unlink";
-
 import styles from "./RichTextElement.module.css";
 
 export type BlockStyle = "paragraph" | "heading" | "quote";
@@ -73,7 +61,7 @@ export function EditorToolbar({
           disabled={!canUndo}
           onClick={actions.undo}
         >
-          <IconUndo />
+          <span className="i-lucide-undo-2" />
         </Tool>
         <Tool
           label="Refazer"
@@ -81,7 +69,7 @@ export function EditorToolbar({
           disabled={!canRedo}
           onClick={actions.redo}
         >
-          <IconRedo />
+          <span className="i-lucide-redo-2" />
         </Tool>
 
         <Toolbar.Separator className={styles.separator} />
@@ -96,7 +84,7 @@ export function EditorToolbar({
           pressed={format.bold}
           onClick={actions.toggleBold}
         >
-          <IconBold />
+          <span className="i-lucide-bold" />
         </Tool>
         <Tool
           label="Itálico"
@@ -104,7 +92,7 @@ export function EditorToolbar({
           pressed={format.italic}
           onClick={actions.toggleItalic}
         >
-          <IconItalic />
+          <span className="i-lucide-italic" />
         </Tool>
         <Tool
           label="Sublinhado"
@@ -112,7 +100,7 @@ export function EditorToolbar({
           pressed={format.underline}
           onClick={actions.toggleUnderline}
         >
-          <IconUnderline />
+          <span className="i-lucide-underline" />
         </Tool>
 
         <Toolbar.Separator className={styles.separator} />
@@ -122,14 +110,14 @@ export function EditorToolbar({
           pressed={format.bulletList}
           onClick={actions.toggleBulletList}
         >
-          <IconList />
+          <span className="i-lucide-list" />
         </Tool>
         <Tool
           label="Lista numerada"
           pressed={format.numberedList}
           onClick={actions.toggleNumberedList}
         >
-          <IconListOrdered />
+          <span className="i-lucide-list-ordered" />
         </Tool>
 
         <Toolbar.Separator className={styles.separator} />
@@ -140,7 +128,7 @@ export function EditorToolbar({
           pressed={format.link}
           onClick={actions.toggleLink}
         >
-          {format.link ? <IconUnlink /> : <IconLink />}
+          <span className={format.link ? "i-lucide-unlink" : "i-lucide-link"} />
         </Tool>
       </Toolbar.Root>
     </Tooltip.Provider>
@@ -211,7 +199,7 @@ function BlockMenu({
         }
       >
         {blockLabels[current]}
-        <IconChevronDown className={styles.caret} />
+        <span className={`i-lucide-chevron-down ${styles.caret}`} />
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="start" sideOffset={6}>

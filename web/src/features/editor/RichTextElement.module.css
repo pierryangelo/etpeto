@@ -24,7 +24,7 @@
 
 /* One size for every icon in the toolbar, set here rather than per import, so
    the row keeps a single optical rhythm. */
-.tool svg {
+.tool [class*="i-lucide"] {
   width: 15px;
   height: 15px;
 }

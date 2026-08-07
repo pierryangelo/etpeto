@@ -2,9 +2,6 @@ import type { SerializedEditorState } from "lexical";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 
-import IconChevronLeft from "~icons/lucide/chevron-left";
-import IconChevronRight from "~icons/lucide/chevron-right";
-
 import type { DocumentContent, DocumentSection } from "../../shared/api/client";
 import { AppHeader } from "../../shared/ui/AppHeader";
 import { RichTextElement } from "./RichTextElement";
@@ -319,7 +316,7 @@ function DocumentOutline({
             aria-label="Recolher roteiro"
             onClick={onCollapse}
           >
-            <IconChevronLeft />
+            <span className="i-lucide-chevron-left" />
           </button>
         )}
       </div>
@@ -447,7 +444,11 @@ function CollapsedRail({
   return (
     <div className={styles.collapsedRail} data-side={side}>
       <button type="button" aria-label={actionLabel} onClick={onExpand}>
-        {side === "left" ? <IconChevronRight /> : <IconChevronLeft />}
+        <span
+          className={
+            side === "left" ? "i-lucide-chevron-right" : "i-lucide-chevron-left"
+          }
+        />
         <strong>{label}</strong>
       </button>
     </div>

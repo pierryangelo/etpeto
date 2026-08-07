@@ -231,8 +231,8 @@
   text-transform: uppercase;
 }
 
-.iconButton svg,
-.previewActions svg {
+.iconButton [class*="i-lucide"],
+.previewActions [class*="i-lucide"] {
   width: 14px;
   height: 14px;
 }
@@ -819,7 +819,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .previewActions svg[data-spinning] {
+  .previewActions [data-spinning] {
     animation: spin 900ms linear infinite;
   }
 }

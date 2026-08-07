@@ -31,19 +31,19 @@
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.121",
-    "@svgr/core": "^8.1.0",
-    "@svgr/plugin-jsx": "^8.1.0",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@unocss/preset-icons": "^66.7.5",
+    "@unocss/preset-wind4": "^66.7.5",
     "@vitejs/plugin-react": "^6.0.5",
     "@vitest/coverage-v8": "4.1.10",
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
     "typescript": "^7.0.2",
-    "unplugin-icons": "^23.0.1",
+    "unocss": "^66.7.5",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
   }

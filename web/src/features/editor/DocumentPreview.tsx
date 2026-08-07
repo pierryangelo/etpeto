@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-import IconChevronRight from "~icons/lucide/chevron-right";
-import IconDownload from "~icons/lucide/download";
-import IconRefresh from "~icons/lucide/refresh-cw";
-
 import { api } from "../../shared/api/client";
 import styles from "./EditorWorkspace.module.css";
 
@@ -81,7 +77,7 @@ export function DocumentPreview({
             aria-label="Recolher prévia oficial"
             onClick={onCollapse}
           >
-            <IconChevronRight />
+            <span className="i-lucide-chevron-right" />
           </button>
         )}
       </div>
@@ -93,7 +89,8 @@ export function DocumentPreview({
             onClick={() => void render()}
             disabled={state === "rendering"}
           >
-            <IconRefresh
+            <span
+              className="i-lucide-refresh-cw"
               data-spinning={state === "rendering" ? "" : undefined}
             />
             {state === "rendering" ? "Gerando…" : "Atualizar"}
@@ -104,7 +101,7 @@ export function DocumentPreview({
             disabled={state !== "ready" || !pdfUrl}
             onClick={() => downloadPdf(pdfUrl, documentTitle)}
           >
-            <IconDownload />
+            <span className="i-lucide-download" />
             Exportar PDF
           </button>
         </div>
