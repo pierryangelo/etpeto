@@ -1,9 +1,12 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help fmt test test-go test-web typecheck build check up down
+.PHONY: help generate fmt test test-go test-web typecheck build check up down
 
 help: ## List canonical commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+generate: ## Regenerate typed database queries
+	@go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 generate
 
 fmt: ## Format all source
 	@if test -d cmd || test -d internal; then gofmt -w $$(find cmd internal -name '*.go' 2>/dev/null); fi
@@ -32,4 +35,3 @@ up: ## Start the reference stack
 
 down: ## Stop the reference stack
 	@docker compose down
-

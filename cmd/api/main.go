@@ -11,23 +11,49 @@ import (
 	"time"
 
 	"github.com/etpeto/etpeto/internal/api"
+	"github.com/etpeto/etpeto/internal/platform/database"
 )
 
 const defaultAddress = ":8080"
 
-type ready struct{}
+type config struct {
+	Address     string
+	DatabaseURL string
+}
 
-func (ready) Ready(context.Context) error { return nil }
+func loadConfig(getenv func(string) string) (config, error) {
+	configuration := config{
+		Address:     getenv("ETPETO_API_ADDR"),
+		DatabaseURL: getenv("ETPETO_DATABASE_URL"),
+	}
+	if configuration.Address == "" {
+		configuration.Address = defaultAddress
+	}
+	if configuration.DatabaseURL == "" {
+		return config{}, errors.New("ETPETO_DATABASE_URL is required")
+	}
+	return configuration, nil
+}
 
 func main() {
-	address := os.Getenv("ETPETO_API_ADDR")
-	if address == "" {
-		address = defaultAddress
+	configuration, err := loadConfig(os.Getenv)
+	if err != nil {
+		slog.Error("invalid API configuration", "error", err)
+		os.Exit(1)
 	}
 
+	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
+	pool, err := database.Open(startupCtx, configuration.DatabaseURL)
+	cancelStartup()
+	if err != nil {
+		slog.Error("database connection failed", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
 	server := &http.Server{
-		Addr:              address,
-		Handler:           api.NewRouter(ready{}),
+		Addr:              configuration.Address,
+		Handler:           api.NewRouter(database.Checker{Pinger: pool}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -39,7 +65,7 @@ func main() {
 
 	serverErrors := make(chan error, 1)
 	go func() {
-		slog.Info("Etpeto API listening", "address", address)
+		slog.Info("Etpeto API listening", "address", configuration.Address)
 		serverErrors <- server.ListenAndServe()
 	}()
 
