@@ -99,6 +99,11 @@ func main() {
 			Templates: templatedomain.Service{
 				Repository: templatedomain.PostgresRepository{Pool: pool},
 			},
+			People: authdomain.Invitations{
+				Repository: authdomain.PostgresInvitationRepository{Pool: pool},
+				Passwords:  authdomain.PasswordHasher{},
+				Tokens:     authdomain.SessionIssuer{TTL: authdomain.InvitationTTL},
+			},
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

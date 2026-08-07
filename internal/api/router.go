@@ -15,6 +15,7 @@ type Dependencies struct {
 	Auth      AuthService
 	Documents DocumentService
 	Templates TemplateService
+	People    PeopleService
 }
 
 // qualifiedSchemaNamer prefixes a schema with the package that declares it.
@@ -63,5 +64,6 @@ func NewRouter(dependencies Dependencies) http.Handler {
 		protected,
 	)
 	registerTemplates(api, dependencies.Templates, protected)
+	registerPeople(api, dependencies.People, protected)
 	return mux
 }

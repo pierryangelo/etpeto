@@ -44,6 +44,21 @@ type Identity struct {
 	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
+type Invitation struct {
+	ID              pgtype.UUID        `db:"id" json:"id"`
+	OrganizationID  pgtype.UUID        `db:"organization_id" json:"organization_id"`
+	Email           string             `db:"email" json:"email"`
+	EmailNormalized string             `db:"email_normalized" json:"email_normalized"`
+	DisplayName     string             `db:"display_name" json:"display_name"`
+	Role            string             `db:"role" json:"role"`
+	TokenHash       []byte             `db:"token_hash" json:"token_hash"`
+	ExpiresAt       pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	AcceptedAt      pgtype.Timestamptz `db:"accepted_at" json:"accepted_at"`
+	AcceptedUserID  pgtype.UUID        `db:"accepted_user_id" json:"accepted_user_id"`
+	CreatedBy       pgtype.UUID        `db:"created_by" json:"created_by"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
 type Membership struct {
 	ID             pgtype.UUID        `db:"id" json:"id"`
 	OrganizationID pgtype.UUID        `db:"organization_id" json:"organization_id"`
