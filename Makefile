@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help generate fmt test test-go test-web test-integration typecheck build coverage coverage-go coverage-web check up bootstrap smoke smoke-journey down
+.PHONY: help generate fmt test test-go test-web test-integration typecheck build coverage coverage-go coverage-web check start up bootstrap smoke smoke-journey down
 
 help: ## List canonical commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -48,7 +48,10 @@ check: ## Run repository, format, test, type, and build gates
 	@$(MAKE) typecheck
 	@$(MAKE) build
 
-up: ## Start the reference stack
+start: ## Bring the Etpeto up from nothing, including the first administrator
+	@sh scripts/start.sh
+
+up: ## Start the reference stack without provisioning
 	@docker compose up --build -d
 
 bootstrap: ## Provision the first administrator (password read from stdin)

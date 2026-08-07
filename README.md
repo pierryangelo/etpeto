@@ -30,21 +30,24 @@ OIDC/Keycloak está previsto na arquitetura, mas ainda não faz parte do walking
 Requer Docker com Compose v2. No macOS, o fluxo é testado com Colima.
 
 ```sh
-cp .env.example .env
-make up
-make bootstrap
+make start
 ```
 
-`make bootstrap` cria a primeira administração e pede a senha na entrada padrão,
-para que ela não fique em arquivos nem no histórico do shell. Ajuste
-`ETPETO_ADMIN_EMAIL` e `ETPETO_ADMIN_DISPLAY_NAME` no `.env` antes de executá-lo.
+O comando cria o `.env` se não existir, sobe a stack e provisiona a primeira
+administração, pedindo a senha na entrada padrão para que ela não fique em
+arquivo nem no histórico do shell. Rodar de novo não altera nada.
 
-Abra [http://localhost:8080](http://localhost:8080) e entre com esse endereço.
+Ajuste `ETPETO_ADMIN_EMAIL` e `ETPETO_ADMIN_DISPLAY_NAME` no `.env` antes, se
+quiser um endereço diferente do exemplo. Ao final, abra
+[http://localhost:8080](http://localhost:8080) e entre com esse endereço.
+
 Para encerrar:
 
 ```sh
 make down
 ```
+
+Para apagar também os dados, `docker compose down -v`.
 
 O arquivo `.env` é apenas para desenvolvimento e não deve ser versionado. Troque todos os segredos antes de qualquer implantação compartilhada.
 
