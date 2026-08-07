@@ -117,31 +117,32 @@
   position: relative;
 }
 
+/* Free prose carries no frame: it is the page. A border here would draw a
+   second document inside the document, and it is what made the editor read as a
+   form rather than a manuscript. */
 .contentEditable {
-  min-height: 150px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-3);
-  padding: var(--space-5);
-  color: var(--color-text);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 15px;
-  line-height: 1.72;
+  min-height: 120px;
+  padding: 0;
+  color: var(--color-ink);
+  font-family: var(--font-document);
+  font-size: 16px;
+  line-height: 1.62;
   outline: none;
 }
 
-.contentEditable:focus {
-  border-color: var(--color-accent-border);
-  box-shadow: 0 0 0 3px var(--color-accent-soft);
+/* Focus is shown on the caret and a quiet rail, not by outlining a box. */
+.contentEditable:focus-visible {
+  box-shadow: -14px 0 0 -13px var(--color-accent);
 }
 
 .placeholder {
   position: absolute;
-  top: var(--space-5);
-  left: var(--space-5);
+  top: 0;
+  left: 0;
   pointer-events: none;
   color: var(--color-text-subtle);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 15px;
+  font-family: var(--font-document);
+  font-size: 16px;
 }
 
 .paragraph {

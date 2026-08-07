@@ -30,7 +30,14 @@
   --radius-4: 15px;
   --shadow-1: 0 1px 2px rgb(20 21 23 / 5%);
   --shadow-2: 0 8px 28px rgb(20 21 23 / 6%);
-  font-family: "Public Sans Variable", "Public Sans", system-ui, sans-serif;
+  /* Two faces carry one distinction: the sans is the tool, the serif is the
+     document. Anything typeset in --font-document is what reaches the PDF. */
+  --font-interface:
+    "Public Sans Variable", "Public Sans", system-ui, sans-serif;
+  --font-document:
+    "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+    "Times New Roman", serif;
+  font-family: var(--font-interface);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }

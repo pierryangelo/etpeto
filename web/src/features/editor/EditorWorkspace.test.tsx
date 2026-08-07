@@ -111,6 +111,40 @@ describe("EditorWorkspace", () => {
     expect(screen.getByRole("tab", { name: "Prévia" })).toBeVisible();
   });
 
+  it("redimensiona o roteiro e guarda a largura neste dispositivo", async () => {
+    const user = userEvent.setup();
+    const first = renderWorkspace();
+    await screen.findByRole("heading", { name: "Necessidade da contratação" });
+
+    const divider = screen.getByRole("separator", {
+      name: "Redimensionar roteiro",
+    });
+    divider.focus();
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+
+    expect(divider).toHaveAttribute("aria-valuenow", "264");
+    first.unmount();
+
+    renderWorkspace();
+    expect(
+      await screen.findByRole("separator", { name: "Redimensionar roteiro" }),
+    ).toHaveAttribute("aria-valuenow", "264");
+  });
+
+  it("não deixa o roteiro encolher além do utilizável", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+    await screen.findByRole("heading", { name: "Necessidade da contratação" });
+
+    const divider = screen.getByRole("separator", {
+      name: "Redimensionar roteiro",
+    });
+    divider.focus();
+    await user.keyboard("{Home}");
+
+    expect(divider).toHaveAttribute("aria-valuenow", "200");
+  });
+
   it("informa quando o documento não pode ser aberto", async () => {
     vi.spyOn(api, "openDocument").mockRejectedValue(
       new ApiError(404, "Documento não encontrado"),

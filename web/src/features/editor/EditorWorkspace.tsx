@@ -6,48 +6,25 @@ import type { DocumentContent, DocumentSection } from "../../shared/api/client";
 import { AppHeader } from "../../shared/ui/AppHeader";
 import { RichTextElement } from "./RichTextElement";
 import { DocumentPreview } from "./DocumentPreview";
+import { PanelDivider } from "./PanelDivider";
+import {
+  clampOutline,
+  clampPreview,
+  outlineBounds,
+  previewBounds,
+  readLayout,
+  writeLayout,
+  type PanelLayout,
+} from "./panelLayout";
 import { useDocumentEditor, type SaveState } from "./useDocumentEditor";
 import styles from "./EditorWorkspace.module.css";
 
-const layoutStorageKey = "etpeto:editor-layout:v1";
-
 type MobileMode = "outline" | "editor" | "preview";
-
-type LayoutPreference = {
-  outlineOpen: boolean;
-  previewOpen: boolean;
-};
 
 type EditorWorkspaceProps = {
   documentId?: string;
   compact?: boolean;
 };
-
-const defaultPreference: LayoutPreference = {
-  outlineOpen: true,
-  previewOpen: true,
-};
-
-function readPreference(): LayoutPreference {
-  try {
-    const saved = localStorage.getItem(layoutStorageKey);
-    if (!saved) return defaultPreference;
-    const candidate: unknown = JSON.parse(saved);
-    if (
-      typeof candidate === "object" &&
-      candidate !== null &&
-      "outlineOpen" in candidate &&
-      typeof candidate.outlineOpen === "boolean" &&
-      "previewOpen" in candidate &&
-      typeof candidate.previewOpen === "boolean"
-    ) {
-      return candidate as LayoutPreference;
-    }
-  } catch {
-    // A corrupt local preference must never block document editing.
-  }
-  return defaultPreference;
-}
 
 function useSmallViewport(): boolean {
   const query = "(max-width: 760px)";
@@ -73,7 +50,7 @@ export function EditorWorkspace({ documentId, compact }: EditorWorkspaceProps) {
   const resolvedId = documentId ?? params.id ?? "";
   const smallViewport = useSmallViewport();
   const isCompact = compact ?? smallViewport;
-  const [preference, setPreference] = useState(readPreference);
+  const [layout, setLayout] = useState(() => readLayout(localStorage));
   const [mobileMode, setMobileMode] = useState<MobileMode>("editor");
   const [activeSectionId, setActiveSectionId] = useState("");
 
@@ -88,13 +65,12 @@ export function EditorWorkspace({ documentId, compact }: EditorWorkspaceProps) {
     );
   }, [activeSectionId, draft]);
 
-  function updatePreference(next: LayoutPreference) {
-    setPreference(next);
-    try {
-      localStorage.setItem(layoutStorageKey, JSON.stringify(next));
-    } catch {
-      // Storage is an enhancement; the editor remains usable without it.
-    }
+  function updateLayout(change: Partial<PanelLayout>) {
+    setLayout((current) => {
+      const next = { ...current, ...change };
+      writeLayout(localStorage, next);
+      return next;
+    });
   }
 
   if (editor.isLoading) {
@@ -130,9 +106,7 @@ export function EditorWorkspace({ documentId, compact }: EditorWorkspaceProps) {
         if (isCompact) setMobileMode("editor");
       }}
       onCollapse={
-        isCompact
-          ? undefined
-          : () => updatePreference({ ...preference, outlineOpen: false })
+        isCompact ? undefined : () => updateLayout({ outlineOpen: false })
       }
     />
   );
@@ -154,9 +128,7 @@ export function EditorWorkspace({ documentId, compact }: EditorWorkspaceProps) {
       compact={isCompact}
       onBeforeRender={editor.flush}
       onCollapse={
-        isCompact
-          ? undefined
-          : () => updatePreference({ ...preference, previewOpen: false })
+        isCompact ? undefined : () => updateLayout({ previewOpen: false })
       }
     />
   );
@@ -191,34 +163,66 @@ export function EditorWorkspace({ documentId, compact }: EditorWorkspaceProps) {
       <AppHeader>{identity}</AppHeader>
       <div
         className={styles.workspace}
-        data-outline-open={preference.outlineOpen}
-        data-preview-open={preference.previewOpen}
+        style={
+          {
+            "--outline-width": `${layout.outlineOpen ? layout.outlineWidth : 0}px`,
+            "--preview-width": `${layout.previewOpen ? layout.previewWidth : 0}px`,
+          } as React.CSSProperties
+        }
+        data-outline-open={layout.outlineOpen}
+        data-preview-open={layout.previewOpen}
       >
-        {preference.outlineOpen ? (
-          outline
+        {layout.outlineOpen ? (
+          <>
+            {outline}
+            <PanelDivider
+              label="Redimensionar roteiro"
+              width={layout.outlineWidth}
+              min={outlineBounds.min}
+              max={outlineBounds.max}
+              grow="right"
+              onResize={(width) =>
+                updateLayout({ outlineWidth: clampOutline(width) })
+              }
+              onReset={() =>
+                updateLayout({ outlineWidth: outlineBounds.default })
+              }
+            />
+          </>
         ) : (
           <CollapsedRail
             label="Roteiro"
             actionLabel="Expandir roteiro"
             side="left"
-            onExpand={() =>
-              updatePreference({ ...preference, outlineOpen: true })
-            }
+            onExpand={() => updateLayout({ outlineOpen: true })}
           />
         )}
 
         {editorPanel}
 
-        {preference.previewOpen ? (
-          preview
+        {layout.previewOpen ? (
+          <>
+            <PanelDivider
+              label="Redimensionar prévia oficial"
+              width={layout.previewWidth}
+              min={previewBounds.min}
+              max={previewBounds.max}
+              grow="left"
+              onResize={(width) =>
+                updateLayout({ previewWidth: clampPreview(width) })
+              }
+              onReset={() =>
+                updateLayout({ previewWidth: previewBounds.default })
+              }
+            />
+            {preview}
+          </>
         ) : (
           <CollapsedRail
             label="Prévia"
             actionLabel="Expandir prévia oficial"
             side="right"
-            onExpand={() =>
-              updatePreference({ ...preference, previewOpen: true })
-            }
+            onExpand={() => updateLayout({ previewOpen: true })}
           />
         )}
       </div>
@@ -385,27 +389,33 @@ function DocumentEditor({
 
   return (
     <main className={styles.editor}>
-      <article className={styles.editorCard}>
-        <div className={styles.sectionContext}>
-          <span>
-            Seção {position} de {draft.sections.length}
-          </span>
-        </div>
-        <h1>{section.title}</h1>
-        {section.guidance && (
-          <p className={styles.guidance}>{section.guidance}</p>
-        )}
+      <div className={styles.editorScroll}>
+        <article className={styles.editorCard}>
+          <div className={styles.sectionContext}>
+            <span>
+              Seção {position} de {draft.sections.length}
+            </span>
+          </div>
+          <h1>{section.title}</h1>
+          {section.guidance && (
+            <p className={styles.guidance}>{section.guidance}</p>
+          )}
 
-        {section.elements.map((element) => (
-          <RichTextElement
-            key={element.id}
-            documentId={documentId}
-            elementId={element.id}
-            initialState={element.richText as SerializedEditorState | undefined}
-            onChange={(state) => onChangeElement(section.id, element.id, state)}
-          />
-        ))}
-      </article>
+          {section.elements.map((element) => (
+            <RichTextElement
+              key={element.id}
+              documentId={documentId}
+              elementId={element.id}
+              initialState={
+                element.richText as SerializedEditorState | undefined
+              }
+              onChange={(state) =>
+                onChangeElement(section.id, element.id, state)
+              }
+            />
+          ))}
+        </article>
+      </div>
     </main>
   );
 }

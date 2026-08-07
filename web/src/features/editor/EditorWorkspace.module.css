@@ -129,44 +129,77 @@
   opacity: 0.92;
 }
 
+/* Panels sit flush against each other. The 1px divider between them is the only
+   separation, so no panel needs a card, a radius or a shadow of its own. */
 .workspace {
-  display: grid;
-  grid-template-columns: minmax(210px, 17vw) minmax(420px, 1fr) minmax(
-      290px,
-      26vw
-    );
+  display: flex;
   min-height: 0;
-}
-
-.workspace[data-outline-open="false"] {
-  grid-template-columns: 48px minmax(420px, 1fr) minmax(290px, 26vw);
-}
-
-.workspace[data-preview-open="false"] {
-  grid-template-columns: minmax(210px, 17vw) minmax(420px, 1fr) 48px;
-}
-
-.workspace[data-outline-open="false"][data-preview-open="false"] {
-  grid-template-columns: 48px minmax(420px, 1fr) 48px;
 }
 
 .outline,
 .compactOutline {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   overflow: auto;
-  border-right: 1px solid var(--color-border);
   background: var(--color-panel);
-  padding: var(--space-5) var(--space-3);
 }
 
-.outline::before {
-  position: absolute;
-  top: 86px;
-  bottom: 110px;
-  left: 30px;
-  width: 1px;
+.outline {
+  flex: 0 0 var(--outline-width);
+}
+
+.compactOutline {
+  flex: 1 1 auto;
+}
+
+/* The divider is a 1px line with a 7px hit target, so it is grabbable without
+   drawing a thick rule across the workspace. */
+.divider {
+  position: relative;
+  flex: 0 0 1px;
+  align-self: stretch;
   background: var(--color-border);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.divider::after {
+  position: absolute;
+  inset: 0 -3px;
   content: "";
+}
+
+.divider:hover,
+.divider:focus-visible {
+  background: var(--color-accent);
+  outline: none;
+}
+
+.grip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 22px;
+  translate: -50% -50%;
+  border-radius: 2px;
+  background: var(--color-text-subtle);
+  opacity: 0;
+}
+
+.divider:hover .grip,
+.divider:focus-visible .grip {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .divider,
+  .grip {
+    transition:
+      background-color 140ms ease,
+      opacity 140ms ease;
+  }
 }
 
 .panelHeading {
@@ -327,22 +360,26 @@
   background: var(--color-accent);
 }
 
+/* Continuous paper: the editing surface runs edge to edge and top to bottom.
+   The reading column is constrained, the background is not. */
 .editor {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   min-width: 0;
+  background: var(--color-paper);
+}
+
+.editorScroll {
+  flex: 1 1 auto;
   overflow: auto;
-  background: var(--color-canvas);
-  padding: clamp(22px, 3vw, 48px);
+  padding: var(--space-6) 0 64px;
 }
 
 .editorCard {
-  width: min(100%, 760px);
-  min-height: 610px;
+  width: min(100%, 660px);
   margin: 0 auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-4);
-  background: var(--color-paper);
-  padding: clamp(24px, 4vw, 54px);
-  box-shadow: var(--shadow-2);
+  padding: 0 var(--space-5);
 }
 
 .sectionContext {
@@ -366,13 +403,16 @@
   text-transform: none;
 }
 
+/* The section heading is set in the document face, not the interface face: what
+   is typeset in serif is what becomes the PDF. */
 .editorCard h1 {
   margin: 0;
   color: var(--color-ink);
-  font-size: clamp(24px, 2.2vw, 34px);
-  font-weight: 710;
-  letter-spacing: -0.035em;
-  line-height: 1.13;
+  font-family: var(--font-document);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
 }
 
 .guidance {
@@ -560,6 +600,7 @@
 
 .collapsedRail {
   display: flex;
+  flex: 0 0 44px;
   min-width: 0;
   border-color: var(--color-border);
   background: var(--color-panel);
@@ -679,19 +720,14 @@
 }
 
 @media (max-width: 1050px) {
-  .workspace {
-    grid-template-columns: minmax(190px, 22vw) minmax(390px, 1fr) minmax(
-        250px,
-        29vw
-      );
-  }
-
-  .editor {
-    padding: var(--space-5);
+  /* Narrow desktops give the editor the room; the panels keep their own
+     stored widths but stop growing with the viewport. */
+  .editorScroll {
+    padding-top: var(--space-5);
   }
 
   .editorCard {
-    padding: var(--space-6);
+    padding: 0 var(--space-4);
   }
 }
 
