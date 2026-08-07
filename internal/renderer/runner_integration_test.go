@@ -17,6 +17,7 @@ func TestCLIRunnerProducesPDFWithRealTypst(t *testing.T) {
 		TemplateRevisionID: "template-v1",
 		Title:              `ETP #1 "seguro"`,
 		Sections: []rendercontract.Section{{
+			Level:      1,
 			Title:      "Necessidade [principal]",
 			Paragraphs: []string{`Consulte https://example.test e C:\temp.`},
 		}},

@@ -43,7 +43,7 @@ describe("EditorWorkspace", () => {
     await screen.findByRole("heading", { name: "Necessidade da contratação" });
 
     await user.click(
-      screen.getByRole("button", { name: /Requisitos da contratação/ }),
+      screen.getByRole("treeitem", { name: /Requisitos da contratação/ }),
     );
 
     expect(

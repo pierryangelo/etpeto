@@ -42,12 +42,29 @@ type Document struct {
 	Sections      []Section `json:"sections"`
 }
 
+// Section is the only structural unit of the document: a subsection is a
+// section nested inside another one, with the same fields and the same rules.
+// A section that has subsections still holds content of its own, so an
+// introductory paragraph does not require inventing a child to live in.
 type Section struct {
-	ID            string    `json:"id"`
-	DefinitionKey string    `json:"definitionKey"`
-	Title         string    `json:"title"`
-	Guidance      string    `json:"guidance,omitempty"`
-	Elements      []Element `json:"elements"`
+	ID            string `json:"id"`
+	DefinitionKey string `json:"definitionKey"`
+	Title         string `json:"title"`
+	Guidance      string `json:"guidance,omitempty"`
+	// Required is declared per section. A required parent does not force its
+	// children, so the script states exactly what it demands at each level.
+	Required bool      `json:"required"`
+	Elements []Element `json:"elements"`
+	Sections []Section `json:"sections,omitempty"`
+}
+
+// FlatSection is a section together with the position it occupies in the tree.
+// The number is derived from that position and never stored: moving a section
+// renumbers the document instead of leaving a stale label behind.
+type FlatSection struct {
+	Section *Section
+	Number  string
+	Depth   int
 }
 
 // Element is a discriminated variant. Only rich text exists today; price
@@ -63,6 +80,7 @@ type outlineSection struct {
 	definitionKey string
 	title         string
 	guidance      string
+	required      bool
 }
 
 // defaultOutline is the provisional ETP script. Configurable, versioned scripts
@@ -73,26 +91,31 @@ var defaultOutline = []outlineSection{
 		definitionKey: "necessidade",
 		title:         "Necessidade da contratação",
 		guidance:      "Descreva o problema a resolver e o resultado esperado para a administração.",
+		required:      true,
 	},
 	{
 		definitionKey: "requisitos",
 		title:         "Requisitos da contratação",
 		guidance:      "Registre requisitos funcionais, técnicos e de sustentabilidade aplicáveis.",
+		required:      true,
 	},
 	{
 		definitionKey: "pesquisa-de-precos",
 		title:         "Pesquisa de preços",
 		guidance:      "Descreva fontes consultadas, datas, valores observados e o critério de cálculo.",
+		required:      true,
 	},
 	{
 		definitionKey: "mapa-de-riscos",
 		title:         "Mapa de riscos",
 		guidance:      "Relacione riscos, probabilidade, impacto, ações preventivas e de contingência.",
+		required:      true,
 	},
 	{
 		definitionKey: "conclusao",
 		title:         "Conclusão",
 		guidance:      "Registre a conclusão sobre a viabilidade da contratação.",
+		required:      true,
 	},
 }
 
@@ -108,6 +131,7 @@ func New(title string) (Document, error) {
 			DefinitionKey: outline.definitionKey,
 			Title:         outline.title,
 			Guidance:      outline.guidance,
+			Required:      outline.required,
 			Elements: []Element{{
 				ID:   uuid.NewString(),
 				Type: ElementRichText,
@@ -133,19 +157,29 @@ func (d Document) Validate() error {
 	if title == "" || utf8.RuneCountInString(title) > maxTitleRunes {
 		return fmt.Errorf("%w: title", ErrInvalidDocument)
 	}
-	if len(d.Sections) == 0 || len(d.Sections) > maxSections {
+	if len(d.Sections) == 0 {
+		return fmt.Errorf("%w: section count", ErrInvalidDocument)
+	}
+	// The limit applies to the whole tree, not to one level, so nesting cannot
+	// be used to smuggle in an unbounded outline.
+	if len(d.Flatten()) > maxSections {
 		return fmt.Errorf("%w: section count", ErrInvalidDocument)
 	}
 	seen := make(map[string]bool, len(d.Sections))
 	for index, section := range d.Sections {
-		if err := section.validate(seen); err != nil {
+		if err := section.validate(seen, 1); err != nil {
 			return fmt.Errorf("%w in section %d", err, index)
 		}
 	}
 	return nil
 }
 
-func (s Section) validate(seen map[string]bool) error {
+func (s Section) validate(seen map[string]bool, depth int) error {
+	if depth > maxOutlineDepth {
+		return fmt.Errorf("%w: outline depth", ErrInvalidDocument)
+	}
+	// Identifiers are unique across the whole document, not per level: a
+	// caller holding an identifier must reach exactly one section.
 	if s.ID == "" || seen[s.ID] {
 		return fmt.Errorf("%w: section identifier", ErrInvalidDocument)
 	}
@@ -163,6 +197,11 @@ func (s Section) validate(seen map[string]bool) error {
 	for _, element := range s.Elements {
 		if err := element.validate(seen); err != nil {
 			return err
+		}
+	}
+	for index, child := range s.Sections {
+		if err := child.validate(seen, depth+1); err != nil {
+			return fmt.Errorf("%w in subsection %d", err, index)
 		}
 	}
 	return nil

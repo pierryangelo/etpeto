@@ -26,17 +26,19 @@ type lexicalNode struct {
 // It never fails: a malformed or empty editor state yields no paragraphs, so a
 // damaged element can never block the preview of the rest of the document.
 func Normalize(source Document, templateRevisionID string) rendercontract.Request {
-	sections := make([]rendercontract.Section, 0, len(source.Sections))
-	for _, section := range source.Sections {
+	flattened := source.Flatten()
+	sections := make([]rendercontract.Section, 0, len(flattened))
+	for _, entry := range flattened {
 		paragraphs := make([]string, 0)
-		for _, element := range section.Elements {
+		for _, element := range entry.Section.Elements {
 			if element.Type != ElementRichText {
 				continue
 			}
 			paragraphs = append(paragraphs, extractParagraphs(element.RichText)...)
 		}
 		sections = append(sections, rendercontract.Section{
-			Title:      section.Title,
+			Title:      entry.Section.Title,
+			Level:      entry.Depth,
 			Paragraphs: paragraphs,
 		})
 	}

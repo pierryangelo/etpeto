@@ -49,12 +49,29 @@ export const documentElementSchema = z.object({
   richText: richTextStateSchema.optional(),
 });
 
-export const documentSectionSchema = z.object({
+// A subsection is a section nested inside another one: the same shape, all the
+// way down. The recursion is declared with a getter so the schema can refer to
+// itself while it is still being defined.
+export type DocumentSection = {
+  id: string;
+  definitionKey: string;
+  title: string;
+  guidance?: string;
+  required: boolean;
+  elements: z.infer<typeof documentElementSchema>[];
+  sections?: DocumentSection[];
+};
+
+export const documentSectionSchema: z.ZodType<DocumentSection> = z.object({
   id: z.string(),
   definitionKey: z.string(),
   title: z.string(),
   guidance: z.string().optional(),
+  required: z.boolean(),
   elements: z.array(documentElementSchema),
+  get sections() {
+    return z.array(documentSectionSchema).optional();
+  },
 });
 
 export const documentContentSchema = z.object({
@@ -74,7 +91,6 @@ export const storedDocumentSchema = z.object({
 export type AuthenticatedUser = z.infer<typeof userSchema>;
 export type DocumentSummary = z.infer<typeof documentSummarySchema>;
 export type DocumentContent = z.infer<typeof documentContentSchema>;
-export type DocumentSection = z.infer<typeof documentSectionSchema>;
 export type StoredDocument = z.infer<typeof storedDocumentSchema>;
 
 /**

@@ -11,6 +11,7 @@ func TestRequestValidateAcceptsVersionOne(t *testing.T) {
 		TemplateRevisionID: "template-v1",
 		Title:              "Estudo técnico preliminar",
 		Sections: []Section{{
+			Level:      1,
 			Title:      "Necessidade da contratação",
 			Paragraphs: []string{"Texto da necessidade."},
 		}},
@@ -44,6 +45,8 @@ func validRequest() Request {
 		SchemaVersion:      1,
 		TemplateRevisionID: "template-v1",
 		Title:              "ETP",
-		Sections:           []Section{{Title: "Seção", Paragraphs: []string{"Texto"}}},
+		Sections: []Section{
+			{Title: "Seção", Level: 1, Paragraphs: []string{"Texto"}},
+		},
 	}
 }

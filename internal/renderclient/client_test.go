@@ -121,6 +121,6 @@ func validClientRequest() rendercontract.Request {
 		SchemaVersion:      1,
 		TemplateRevisionID: "template-v1",
 		Title:              "ETP de notebooks",
-		Sections:           []rendercontract.Section{{Title: "Necessidade", Paragraphs: []string{"Texto"}}},
+		Sections:           []rendercontract.Section{{Title: "Necessidade", Level: 1, Paragraphs: []string{"Texto"}}},
 	}
 }

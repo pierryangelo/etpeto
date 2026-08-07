@@ -10,7 +10,9 @@ const (
 	CurrentSchemaVersion = 1
 	MaxSections          = 100
 	MaxTitleRunes        = 300
-	MaxParagraphRunes    = 20_000
+	// MaxSectionLevel matches the outline depth the document model accepts.
+	MaxSectionLevel   = 4
+	MaxParagraphRunes = 20_000
 )
 
 type Request struct {
@@ -20,8 +22,12 @@ type Request struct {
 	Sections           []Section `json:"sections"`
 }
 
+// Section carries its outline level so the template can number and indent
+// headings. The list stays flat and in reading order: the renderer numbers by
+// level, it does not rebuild the tree.
 type Section struct {
 	Title      string   `json:"title"`
+	Level      int      `json:"level"`
 	Paragraphs []string `json:"paragraphs"`
 }
 
@@ -41,6 +47,13 @@ func (r Request) Validate() error {
 	for sectionIndex, section := range r.Sections {
 		if err := validateTitle(fmt.Sprintf("sections[%d].title", sectionIndex), section.Title); err != nil {
 			return err
+		}
+		if section.Level < 1 || section.Level > MaxSectionLevel {
+			return fmt.Errorf(
+				"sections[%d].level: must be between 1 and %d",
+				sectionIndex,
+				MaxSectionLevel,
+			)
 		}
 		for paragraphIndex, paragraph := range section.Paragraphs {
 			if utf8.RuneCountInString(paragraph) > MaxParagraphRunes {

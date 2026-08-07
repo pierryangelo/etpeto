@@ -6,6 +6,7 @@ import type { DocumentContent, DocumentSection } from "../../shared/api/client";
 import { AppHeader } from "../../shared/ui/AppHeader";
 import { RichTextElement } from "./RichTextElement";
 import { DocumentPreview } from "./DocumentPreview";
+import { OutlineTree } from "./OutlineTree";
 import { PanelDivider } from "./PanelDivider";
 import {
   clampOutline,
@@ -16,7 +17,11 @@ import {
   writeLayout,
   type PanelLayout,
 } from "./panelLayout";
-import { documentProgress, sectionStatus } from "./sectionProgress";
+import {
+  documentProgress,
+  flattenSections,
+  sectionStatus,
+} from "./sectionProgress";
 import { useDocumentEditor, type SaveState } from "./useDocumentEditor";
 import styles from "./EditorWorkspace.module.css";
 
@@ -60,9 +65,10 @@ export function EditorWorkspace({ documentId, compact }: EditorWorkspaceProps) {
 
   const activeSection = useMemo(() => {
     if (!draft) return undefined;
+    const flattened = flattenSections(draft.sections);
     return (
-      draft.sections.find((section) => section.id === activeSectionId) ??
-      draft.sections[0]
+      flattened.find((entry) => entry.section.id === activeSectionId)
+        ?.section ?? flattened[0]?.section
     );
   }, [activeSectionId, draft]);
 
@@ -320,38 +326,11 @@ function DocumentOutline({
           </button>
         )}
       </div>
-      <ol className={styles.sectionList}>
-        {statuses.map((status, index) => {
-          const active = status.section.id === activeSectionId;
-          const state = active ? "active" : status.filled ? "done" : "todo";
-          return (
-            <li key={status.section.id} className={styles.sectionItem}>
-              <button
-                className={styles.sectionButton}
-                data-state={state}
-                type="button"
-                aria-current={active ? "step" : undefined}
-                onClick={() => onSelect(status.section.id)}
-              >
-                <span className={styles.sectionMarker} aria-hidden="true">
-                  {status.filled ? "✓" : index + 1}
-                </span>
-                <span className={styles.sectionName}>
-                  {status.section.title}
-                </span>
-                <span
-                  className={styles.sectionRequirement}
-                  data-pending={
-                    status.required && !status.filled ? "" : undefined
-                  }
-                >
-                  {status.required ? "Obrig." : "Opcional"}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+      <OutlineTree
+        sections={sections}
+        activeSectionId={activeSectionId}
+        onSelect={onSelect}
+      />
       <div className={styles.outlineProgress}>
         <span>Preenchimento</span>
         <strong>{percent}%</strong>
@@ -393,7 +372,7 @@ function DocumentEditor({
     <main className={styles.editor}>
       <div className={styles.editorContext}>
         <span>
-          Seção {status.position} de {draft.sections.length}
+          Seção {status.number} de {draft.sections.length}
         </span>
         <span className={styles.contextDot} aria-hidden="true" />
         <span data-required={status.required ? "" : undefined}>

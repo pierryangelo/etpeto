@@ -3,39 +3,79 @@ import type { DocumentContent, DocumentSection } from "../../shared/api/client";
 /**
  * Reading the outline's state out of the document itself.
  *
- * Which sections are required is a property of the script, not of the text, so
- * this is where a published, versioned template will plug in. Until then the
- * required keys live here rather than being scattered through the components.
+ * A subsection is a section nested inside another one, so everything here walks
+ * the tree in reading order and derives the number from the position. Numbering
+ * is never stored: moving a section renumbers the document instead of leaving a
+ * stale label behind. Obligation comes from the document, which carries what
+ * the script declared, section by section.
  */
-const optionalDefinitionKeys = new Set(["conclusao"]);
 
-export type SectionStatus = {
+export type FlatSection = {
   section: DocumentSection;
-  position: number;
+  /** Hierarchical number derived from the position, such as "2.1.1". */
+  number: string;
+  /** 1 for a top level section, 2 for a subsection, and so on. */
+  level: number;
+  /** Identifiers from the root down, used to hide a collapsed branch. */
+  path: string[];
+  parentId?: string;
+};
+
+export type SectionStatus = FlatSection & {
   required: boolean;
   words: number;
   filled: boolean;
 };
 
-export function sectionStatus(
-  content: DocumentContent,
-  section: DocumentSection,
-): SectionStatus {
-  const words = countWords(section);
+export function flattenSections(sections: DocumentSection[]): FlatSection[] {
+  const flattened: FlatSection[] = [];
+  walk(sections, "", 1, [], undefined, flattened);
+  return flattened;
+}
+
+function walk(
+  sections: DocumentSection[],
+  prefix: string,
+  level: number,
+  ancestors: string[],
+  parentId: string | undefined,
+  into: FlatSection[],
+) {
+  sections.forEach((section, index) => {
+    const number = prefix ? `${prefix}.${index + 1}` : String(index + 1);
+    const path = [...ancestors, section.id];
+    into.push({ section, number, level, path, parentId });
+    walk(section.sections ?? [], number, level + 1, path, section.id, into);
+  });
+}
+
+function describe(entry: FlatSection): SectionStatus {
+  const words = countWords(entry.section);
   return {
-    section,
-    position: content.sections.findIndex((item) => item.id === section.id) + 1,
-    required: !optionalDefinitionKeys.has(section.definitionKey),
+    ...entry,
+    required: entry.section.required,
     words,
     filled: words > 0,
   };
 }
 
-export function documentProgress(content: DocumentContent) {
-  const statuses = content.sections.map((section) =>
-    sectionStatus(content, section),
+export function sectionStatus(
+  content: DocumentContent,
+  section: DocumentSection,
+): SectionStatus {
+  const entry = flattenSections(content.sections).find(
+    (candidate) => candidate.section.id === section.id,
   );
+  return describe(
+    entry ?? { section, number: "1", level: 1, path: [section.id] },
+  );
+}
+
+export function documentProgress(content: DocumentContent) {
+  const statuses = flattenSections(content.sections).map(describe);
   const filled = statuses.filter((status) => status.filled).length;
+  // A pending section is any required one still empty, at any level: a required
+  // parent does not vouch for its children, nor the other way round.
   const missing = statuses.filter(
     (status) => status.required && !status.filled,
   );
@@ -44,6 +84,11 @@ export function documentProgress(content: DocumentContent) {
     percent: statuses.length ? Math.round((filled / statuses.length) * 100) : 0,
     missingRequired: missing.map((status) => status.section.title),
   };
+}
+
+/** Whether a section holds content of its own, ignoring its subsections. */
+export function sectionHasContent(section: DocumentSection): boolean {
+  return countWords(section) > 0;
 }
 
 /**

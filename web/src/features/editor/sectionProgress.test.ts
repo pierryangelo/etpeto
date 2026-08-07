@@ -33,7 +33,8 @@ describe("sectionProgress", () => {
     const content = withText("texto");
     const status = sectionStatus(content, content.sections[0]!);
 
-    expect(status.position).toBe(1);
+    expect(status.number).toBe("1");
+    expect(status.level).toBe(1);
     expect(status.required).toBe(true);
     expect(status.filled).toBe(true);
   });
@@ -48,7 +49,7 @@ describe("sectionProgress", () => {
 
   it("não cobra preenchimento de uma seção opcional", () => {
     const content = withText("texto");
-    content.sections[1]!.definitionKey = "conclusao";
+    content.sections[1]!.required = false;
 
     const progress = documentProgress(content);
 
