@@ -1,0 +1,127 @@
+name: etpeto
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-etpeto}
+      POSTGRES_USER: ${POSTGRES_USER:-etpeto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - data
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: deploy/api.Dockerfile
+    entrypoint: ["/app/migrate"]
+    environment:
+      ETPETO_DATABASE_URL: postgres://${POSTGRES_USER:-etpeto}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-etpeto}?sslmode=disable
+      ETPETO_MIGRATIONS_DIR: /app/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+    restart: "no"
+
+  renderer:
+    build:
+      context: .
+      dockerfile: deploy/renderer.Dockerfile
+    environment:
+      ETPETO_RENDERER_ADDR: :8081
+      ETPETO_RENDERER_MAX_CONCURRENT: 2
+      ETPETO_RENDERER_TEMP_DIR: /tmp/etpeto
+      ETPETO_RENDERER_TOKEN: ${ETPETO_RENDERER_TOKEN:?set ETPETO_RENDERER_TOKEN in .env}
+    healthcheck:
+      test: ["CMD", "/app/healthcheck", "http://localhost:8081/livez"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    read_only: true
+    tmpfs:
+      - /tmp/etpeto:size=64m,mode=0700,uid=65532,gid=65532
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - render
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/api.Dockerfile
+    environment:
+      ETPETO_API_ADDR: :8080
+      ETPETO_DATABASE_URL: postgres://${POSTGRES_USER:-etpeto}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-etpeto}?sslmode=disable
+      ETPETO_ORGANIZATION_SLUG: ${ETPETO_ORGANIZATION_SLUG:-default}
+      ETPETO_RENDERER_URL: http://renderer:8081
+      ETPETO_RENDERER_TOKEN: ${ETPETO_RENDERER_TOKEN:?set ETPETO_RENDERER_TOKEN in .env}
+    healthcheck:
+      test: ["CMD", "/app/healthcheck", "http://localhost:8080/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      renderer:
+        condition: service_healthy
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - edge
+      - data
+      - render
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    ports:
+      - "${ETPETO_HTTP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /config:size=1m,mode=0700,uid=1000,gid=1000
+      - /data:size=8m,mode=0700,uid=1000,gid=1000
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - edge
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+
+networks:
+  edge:
+    internal: false
+  data:
+    internal: true
+  render:
+    internal: true
